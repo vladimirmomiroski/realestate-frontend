@@ -1,3 +1,5 @@
+import { ThemeToggle } from "@/components/shared/theme/theme-toggle";
+
 export default function Home() {
   return (
     <main className="bg-background font-text-foreground min-h-screen px-6 py-16">
@@ -158,6 +160,10 @@ export default function Home() {
               </label>
             </div>
           </div>
+        </div>
+
+        <div className="mb-8">
+          <ThemeToggle />
         </div>
       </section>
     </main>
