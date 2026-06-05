@@ -1,21 +1,23 @@
 import { ThemeToggle } from "@/components/shared/theme/theme-toggle";
+import { defaultLocale, getDictionary } from "@/i18n";
 
 export default function Home() {
+  const dictionary = getDictionary(defaultLocale);
+
   return (
     <main className="bg-background font-text-foreground min-h-screen px-6 py-16">
       <section className="mx-auto max-w-6xl">
         <div className="mb-12 max-w-3xl">
           <p className="border-border bg-card text-muted-foreground mb-4 inline-flex rounded-full border px-4 py-2 text-sm font-medium">
-            Real estate intelligence platform
+            {dictionary.home.eyebrow}
           </p>
 
           <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">
-            Find apartments and understand their real value.
+            {dictionary.home.title}
           </h1>
 
           <p className="text-muted-foreground mt-6 text-lg leading-8">
-            A smarter apartment search experience focused on comparisons, price
-            insights, and better buying decisions.
+            {dictionary.home.description}
           </p>
         </div>
 
