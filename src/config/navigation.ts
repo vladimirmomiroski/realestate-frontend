@@ -1,49 +1,55 @@
+import type { NavigationKey } from "@/i18n";
 import { routes } from "./routes";
+
+type NavigationItem = {
+  labelKey: NavigationKey;
+  href: string;
+};
 
 export const publicNavigation = [
   {
-    label: "Listings",
+    labelKey: "listings",
     href: routes.listings,
   },
-] as const;
+] as const satisfies readonly NavigationItem[];
 
 export const authNavigation = [
   {
-    label: "Login",
+    labelKey: "login",
     href: routes.login,
   },
   {
-    label: "Register",
+    labelKey: "register",
     href: routes.register,
   },
-] as const;
+] as const satisfies readonly NavigationItem[];
 
 export const dashboardNavigation = [
   {
-    label: "Dashboard",
+    labelKey: "dashboard",
     href: routes.dashboard,
   },
   {
-    label: "Saved",
+    labelKey: "saved",
     href: routes.saved,
   },
   {
-    label: "Profile",
+    labelKey: "profile",
     href: routes.profile,
   },
-] as const;
+] as const satisfies readonly NavigationItem[];
 
 export const adminNavigation = [
   {
-    label: "Admin",
+    labelKey: "admin",
     href: routes.admin,
   },
   {
-    label: "Users",
+    labelKey: "users",
     href: routes.adminUsers,
   },
   {
-    label: "Listings",
+    labelKey: "listings",
     href: routes.adminListings,
   },
-] as const;
+] as const satisfies readonly NavigationItem[];
