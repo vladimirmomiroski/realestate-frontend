@@ -5,28 +5,51 @@ export const en = {
     appName: "Real Estate Frontend",
   },
 
+  metadata: {
+    home: {
+      title: "Property in North Macedonia",
+      description:
+        "Discover homes for sale and rent across North Macedonia with clear property information.",
+    },
+  },
+
   navigation: {
+    home: "Home",
     listings: "Listings",
-    login: "Login",
-    register: "Register",
-    dashboard: "Dashboard",
-    saved: "Saved",
-    profile: "Profile",
-    admin: "Admin",
-    users: "Users",
   },
 
   home: {
-    eyebrow: "Real estate intelligence platform",
-    title: "Find apartments and understand their real value.",
+    eyebrow: "Property discovery in North Macedonia",
+    title: "Find a home that fits your plans.",
     description:
-      "A smarter apartment search experience focused on comparisons, price insights, and better buying decisions.",
+      "Explore homes for sale and rent with clear details, structured filters, and price per square metre.",
   },
 
   theme: {
-    toggle: "Toggle theme",
-    light: "Light mode",
-    dark: "Dark mode",
+    label: "Theme",
+    system: "System",
+    light: "Light",
+    dark: "Dark",
+  },
+
+  locale: {
+    label: "Language",
+    mk: "Macedonian",
+    en: "English",
+  },
+
+  errors: {
+    genericTitle: "Something went wrong",
+    genericDescription: "Please try again.",
+    retry: "Try again",
+    requestIdLabel: "Support ID",
+    copyRequestId: "Copy support ID",
+  },
+
+  accessibility: {
+    skipToContent: "Skip to content",
+    openMenu: "Open menu",
+    closeMenu: "Close menu",
   },
 
   listings: {
@@ -42,7 +65,7 @@ export const en = {
     minPrice: "Minimum price",
     maxPrice: "Maximum price",
     area: "Area",
-    pricePerSquareMeter: "Price per square meter",
+    pricePerSquareMeter: "Price per square metre",
     rooms: "Rooms",
     bathrooms: "Bathrooms",
     floor: "Floor",

@@ -3,15 +3,16 @@ export type Dictionary = {
     appName: string;
   };
 
+  metadata: {
+    home: {
+      title: string;
+      description: string;
+    };
+  };
+
   navigation: {
+    home: string;
     listings: string;
-    login: string;
-    register: string;
-    dashboard: string;
-    saved: string;
-    profile: string;
-    admin: string;
-    users: string;
   };
 
   home: {
@@ -21,9 +22,30 @@ export type Dictionary = {
   };
 
   theme: {
-    toggle: string;
+    label: string;
+    system: string;
     light: string;
     dark: string;
+  };
+
+  locale: {
+    label: string;
+    mk: string;
+    en: string;
+  };
+
+  errors: {
+    genericTitle: string;
+    genericDescription: string;
+    retry: string;
+    requestIdLabel: string;
+    copyRequestId: string;
+  };
+
+  accessibility: {
+    skipToContent: string;
+    openMenu: string;
+    closeMenu: string;
   };
 
   listings: {
@@ -73,3 +95,8 @@ export type Dictionary = {
 };
 
 export type NavigationKey = keyof Dictionary["navigation"];
+
+export type ClientDictionary = Pick<
+  Dictionary,
+  "common" | "navigation" | "theme" | "locale" | "errors" | "accessibility"
+>;

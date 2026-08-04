@@ -1,3 +1,2 @@
-export * from "./locales";
-export * from "./dictionaries";
+export * from "./config";
 export type * from "./dictionaries/types";
