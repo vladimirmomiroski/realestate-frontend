@@ -3,6 +3,7 @@ import type { Dictionary } from "./types";
 export const en = {
   common: {
     appName: "Real Estate Frontend",
+    footerText: "Clear property discovery for North Macedonia.",
   },
 
   metadata: {
@@ -23,6 +24,17 @@ export const en = {
     title: "Find a home that fits your plans.",
     description:
       "Explore homes for sale and rent with clear details, structured filters, and price per square metre.",
+    featuresLabel: "What you can explore",
+    discoveryTitle: "Property discovery",
+    discoveryDescription:
+      "Browse a focused catalogue of homes for sale and rent.",
+    filtersTitle: "Structured filters",
+    filtersDescription:
+      "Narrow future listing results by practical property criteria.",
+    priceTitle: "Comparable pricing",
+    priceDescription:
+      "Review the listed price per square metre alongside property details.",
+    browseListings: "Browse listings",
   },
 
   theme: {
@@ -44,12 +56,16 @@ export const en = {
     retry: "Try again",
     requestIdLabel: "Support ID",
     copyRequestId: "Copy support ID",
+    notFoundTitle: "Page not found",
+    notFoundDescription: "The page you requested could not be found.",
+    backHome: "Back to home",
   },
 
   accessibility: {
     skipToContent: "Skip to content",
     openMenu: "Open menu",
     closeMenu: "Close menu",
+    primaryNavigation: "Primary navigation",
   },
 
   listings: {

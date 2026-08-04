@@ -13,9 +13,5 @@ export function getPublicNavigation(locale: Locale) {
       labelKey: "home",
       href: routes.home(locale),
     },
-    {
-      labelKey: "listings",
-      href: routes.listings(locale),
-    },
   ] as const satisfies readonly NavigationItem[];
 }
