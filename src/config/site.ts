@@ -1,5 +1,7 @@
+import "server-only";
+
+import { env } from "./env.server";
+
 export const siteConfig = {
-  name: "Real Estate Frontend",
-  description: "Apartment search platform with smart comparison tools.",
-  url: "http://localhost:3000",
+  url: new URL(env.SITE_URL),
 } as const;

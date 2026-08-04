@@ -1,4 +1,4 @@
-import { defaultLocale, type Locale } from "@/i18n/locales";
+import { defaultLocale, type Locale } from "@/i18n/config";
 
 type OptionalNumber = number | null | undefined;
 type OptionalString = string | null | undefined;

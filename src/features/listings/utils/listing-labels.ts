@@ -1,9 +1,9 @@
+import type { components } from "@/contracts/generated/openapi";
 import type { Dictionary } from "@/i18n";
-import type {
-  ListingStatus,
-  ListingType,
-  PropertyType,
-} from "../types/listing";
+
+type ListingStatus = components["schemas"]["ListingStatus"];
+type ListingType = components["schemas"]["ListingType"];
+type PropertyType = components["schemas"]["PropertyType"];
 
 export function getListingTypeLabel(
   listingType: ListingType,

@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { notFound } from "next/navigation";
 
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { routes } from "@/config/routes";
+import { siteConfig } from "@/config/site";
 import { ClientDictionaryProvider } from "@/i18n/client-context";
 import { getClientDictionary } from "@/i18n/client-dictionary";
 import { isSupportedLocale, locales } from "@/i18n/config";
@@ -46,8 +48,18 @@ export async function generateMetadata({
   const dictionary = await getDictionary(locale);
 
   return {
+    metadataBase: siteConfig.url,
     title: dictionary.metadata.home.title,
     description: dictionary.metadata.home.description,
+    alternates: {
+      canonical: routes.home(locale),
+      languages: Object.fromEntries(
+        locales.map((supportedLocale) => [
+          supportedLocale,
+          routes.home(supportedLocale),
+        ])
+      ),
+    },
   };
 }
 
