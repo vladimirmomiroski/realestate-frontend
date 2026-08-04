@@ -3,6 +3,7 @@ import type { Dictionary } from "./types";
 export const mk = {
   common: {
     appName: "Недвижности",
+    footerText: "Јасно пребарување на недвижности во Северна Македонија.",
   },
 
   metadata: {
@@ -23,6 +24,17 @@ export const mk = {
     title: "Пронајдете дом што одговара на вашите планови.",
     description:
       "Истражете домови за продажба и изнајмување со јасни податоци, структурирани филтри и цена по квадратен метар.",
+    featuresLabel: "Што можете да истражите",
+    discoveryTitle: "Пребарување недвижности",
+    discoveryDescription:
+      "Прегледајте фокусиран каталог на домови за продажба и изнајмување.",
+    filtersTitle: "Структурирани филтри",
+    filtersDescription:
+      "Стеснете ги идните резултати според практични критериуми за имот.",
+    priceTitle: "Споредливи цени",
+    priceDescription:
+      "Прегледајте ја наведената цена по квадратен метар со податоците за имотот.",
+    browseListings: "Прегледај огласи",
   },
 
   theme: {
@@ -44,12 +56,16 @@ export const mk = {
     retry: "Обиди се повторно",
     requestIdLabel: "Идентификатор за поддршка",
     copyRequestId: "Копирај го идентификаторот",
+    notFoundTitle: "Страницата не е пронајдена",
+    notFoundDescription: "Бараната страница не може да се пронајде.",
+    backHome: "Назад на почетна",
   },
 
   accessibility: {
     skipToContent: "Прескокни до содржината",
     openMenu: "Отвори мени",
     closeMenu: "Затвори мени",
+    primaryNavigation: "Главна навигација",
   },
 
   listings: {

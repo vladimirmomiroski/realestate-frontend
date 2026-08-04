@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { notFound } from "next/navigation";
 
-import { ThemeProvider } from "@/components/shared/providers/theme-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ClientDictionaryProvider } from "@/i18n/client-context";
 import { getClientDictionary } from "@/i18n/client-dictionary";
 import { isSupportedLocale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/get-dictionary.server";
 
-import "../globals.css";
+import "@/styles/globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -66,7 +66,7 @@ export default async function LocaleLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans">
-        <ClientDictionaryProvider dictionary={clientDictionary}>
+        <ClientDictionaryProvider dictionary={clientDictionary} locale={locale}>
           <ThemeProvider>{children}</ThemeProvider>
         </ClientDictionaryProvider>
       </body>

@@ -1,6 +1,7 @@
 export type Dictionary = {
   common: {
     appName: string;
+    footerText: string;
   };
 
   metadata: {
@@ -19,6 +20,14 @@ export type Dictionary = {
     eyebrow: string;
     title: string;
     description: string;
+    featuresLabel: string;
+    discoveryTitle: string;
+    discoveryDescription: string;
+    filtersTitle: string;
+    filtersDescription: string;
+    priceTitle: string;
+    priceDescription: string;
+    browseListings: string;
   };
 
   theme: {
@@ -40,12 +49,16 @@ export type Dictionary = {
     retry: string;
     requestIdLabel: string;
     copyRequestId: string;
+    notFoundTitle: string;
+    notFoundDescription: string;
+    backHome: string;
   };
 
   accessibility: {
     skipToContent: string;
     openMenu: string;
     closeMenu: string;
+    primaryNavigation: string;
   };
 
   listings: {
