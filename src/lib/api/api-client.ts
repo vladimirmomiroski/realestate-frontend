@@ -1,4 +1,6 @@
-const DEFAULT_API_BASE_URL = "http://localhost:5231";
+import "server-only";
+
+import { env } from "@/config/env.server";
 
 export type ApiQueryValue = string | number | boolean | null | undefined;
 
@@ -22,11 +24,7 @@ export class ApiError extends Error {
 }
 
 function getApiBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_API_BASE_URL ??
-    process.env.API_BASE_URL ??
-    DEFAULT_API_BASE_URL
-  );
+  return env.API_BASE_URL;
 }
 
 function createApiUrl(path: string, query?: ApiQueryParams) {
