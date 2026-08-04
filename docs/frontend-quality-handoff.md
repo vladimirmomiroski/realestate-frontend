@@ -39,6 +39,13 @@ It is a live source-controlled issue register, not project history, a completed-
   - Smallest safe direction: Compare native path resolution against the current plugin in an isolated branch and remove the dependency only if all alias, test, lint, typecheck, and build behavior remains equivalent.
   - Classification: Low-priority dependency simplification; no current functional defect.
 
+- **FE-TOOL-04: next-themes bootstrap emits a React client-render warning**
+  - Area: Next.js 16 and React 19 theme bootstrap during client locale navigation.
+  - Risk: React warns that a script encountered during client rendering is not executed, so a future route or provider change could affect theme initialization even though current behavior passes.
+  - Evidence: The final Chromium suite reproducibly emits the script-tag warning during client locale/theme navigation with `next-themes`; System, Light, Dark, and persisted reload behavior all pass without a hydration mismatch.
+  - Smallest safe direction: Reproduce the warning in an isolated tooling branch, confirm upstream compatibility for the installed Next.js, React, and `next-themes` versions, and change provider placement or dependency versions only with theme-flash and persistence regression coverage.
+  - Classification: Non-blocking integration warning; no current functional defect.
+
 - **FE-DEP-01: Installation summary and explicit npm audit results have been inconsistent**
   - Area: Dependency-security reporting.
   - Risk: `npm install` or `npm ci` may report advisory counts that differ from immediately repeated explicit audit commands, making the real remediation state unclear.

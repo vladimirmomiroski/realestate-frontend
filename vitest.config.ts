@@ -1,6 +1,6 @@
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [tsconfigPaths(), react()],
@@ -9,6 +9,7 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     clearMocks: true,
     restoreMocks: true,
+    exclude: [...configDefaults.exclude, "tests/e2e/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
