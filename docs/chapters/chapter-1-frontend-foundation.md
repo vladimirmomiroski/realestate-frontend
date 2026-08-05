@@ -3,19 +3,36 @@
 ## 1. Status
 
 ```text
-Status: ready for implementation
+Status: complete
 Architecture verdict: selectively rebuild
 Dependency: completed backend Chapter 12 contract
 Next chapter: Chapter 2 — Public Listings Catalog Vertical Slice
 ```
 
-This document is the implementation authority for Chapter 1. It converts the accepted frontend architecture into an ordered, bounded implementation plan. The implementation session must not reopen the architecture choices recorded here.
+This document is the completed implementation record and continuing architecture authority for Chapter 1. Checkpoints 1A through 1H were completed in order; later chapters may rely on the resulting boundaries without reopening them.
+
+Final completion evidence:
+
+```text
+Vitest                         16 files, 133 tests passed
+coverage                       statements 84.83% (263/310), branches 75.80% (235/310),
+                                functions 83.90% (73/87), lines 84.69% (260/307)
+Playwright                     1 Chromium file, 22 tests passed
+axe                            Macedonian Light: 0 violations
+axe                            English Dark: 0 violations
+production routes              /_not-found, /mk, /en, Proxy
+OpenAPI generation/check       exact match to Development Swagger
+normal build/test/E2E          backend-independent
+accessibility review           keyboard, focus, reduced motion, touch targets,
+                                narrow reflow, and documented 200% CSS-viewport equivalent passed
+quality handoff                5 unresolved entries retained
+```
 
 ## 2. Objective
 
 Establish the frontend operating system once and prove it through a small visible bilingual public shell.
 
-Chapter 1 must leave the repository with:
+Chapter 1 left the repository with:
 
 - canonical locale-prefixed routing;
 - correct document language and localized metadata;
@@ -34,7 +51,7 @@ Chapter 1 is foundation work, but it must produce a visible result. `/` must red
 
 ## 3. User-Visible and Architectural Outcome
 
-At completion:
+Implemented outcome:
 
 ```text
 GET /                         -> locale-prefixed redirect, falling back to /mk
@@ -54,7 +71,7 @@ No real listing data is rendered in Chapter 1. The shell may link to `/{locale}/
 
 ## 4. Locked Implementation Decisions
 
-The Chapter 1 implementation session must apply these decisions rather than reconsider them:
+Chapter 1 applied these decisions, which continue to govern later chapters unless explicitly reopened with evidence:
 
 1. Keep Next.js 16, React 19, npm, TypeScript, Tailwind CSS 4, `next-themes`, and `lucide-react`.
 2. Selectively rebuild rather than preserving stale structure or starting a new project.
@@ -170,7 +187,7 @@ prettier-plugin-tailwindcss
 @types/react-dom
 ```
 
-### 7.2 Add as runtime dependencies
+### 7.2 Added runtime dependencies
 
 ```text
 zod
@@ -187,7 +204,7 @@ Purposes:
 - `class-variance-authority`: typed variants for the small owned primitive layer.
 - `server-only`: compile/build guard for environment, dictionary, and server-transport modules.
 
-### 7.3 Add as development dependencies
+### 7.3 Added development dependencies
 
 ```text
 openapi-typescript
@@ -249,7 +266,7 @@ Configure Playwright initially for Chromium. Browser-matrix expansion is deferre
 
 ## 9. File Operations
 
-### 9.1 Root files to modify
+### 9.1 Root files modified
 
 ```text
 package.json
@@ -258,13 +275,13 @@ tsconfig.json
 eslint.config.mjs
 next.config.ts
 .gitignore
-.prettierignore                 # only if generated/test output needs it
 README.md                       # closeout, after implementation is true
 AGENTS.md                       # closeout, after architecture is enforced
 docs/frontend-context.md        # closeout reconciliation only
+docs/chapters/chapter-1-frontend-foundation.md
 ```
 
-### 9.2 Root files to create
+### 9.2 Root files created
 
 ```text
 .env.example
@@ -273,9 +290,10 @@ playwright.config.ts
 scripts/generate-api-types.mjs
 scripts/check-api-types.mjs
 tests/e2e/foundation.spec.ts
+docs/frontend-quality-handoff.md
 ```
 
-### 9.3 Source files to create
+### 9.3 Source files created
 
 ```text
 src/proxy.ts
@@ -288,44 +306,61 @@ src/app/[locale]/(public)/page.tsx
 
 src/components/providers/theme-provider.tsx
 src/components/ui/button.tsx
+src/components/ui/button.test.tsx
 src/components/shell/skip-link.tsx
 src/components/shell/public-header.tsx
 src/components/shell/public-footer.tsx
 src/components/shell/locale-switcher.tsx
+src/components/shell/locale-switcher.test.tsx
 src/components/shell/theme-control.tsx
+src/components/shell/theme-control.test.tsx
+src/components/shell/public-shell.test.tsx
 src/components/feedback/error-state.tsx
+src/components/feedback/error-state.test.tsx
 
 src/config/env.server.ts
+src/config/env.ts
+src/config/env.test.ts
 src/config/site.ts
 src/config/routes.ts
+src/config/routes.test.ts
 
 src/contracts/generated/openapi.d.ts
 
 src/i18n/config.ts
 src/i18n/get-dictionary.server.ts
 src/i18n/client-context.tsx
+src/i18n/client-dictionary.ts
+src/i18n/client-dictionary.test.ts
+src/i18n/config.test.ts
+src/i18n/get-dictionary.server.test.ts
 src/i18n/dictionaries/en.ts
 src/i18n/dictionaries/mk.ts
 src/i18n/dictionaries/types.ts
 
 src/lib/api/transport.server.ts
+src/lib/api/transport.server.test.ts
 src/lib/api/problem-details.ts
+src/lib/api/problem-details.test.ts
 src/lib/api/api-error.ts
+src/lib/api/api-error.test.ts
 src/lib/api/query-params.ts
+src/lib/api/query-params.test.ts
 src/lib/api/page.ts
 src/lib/media/media-url.ts
+src/lib/media/media-url.test.ts
 src/lib/utils/cn.ts
 
 src/styles/globals.css
 src/styles/tokens.css
 
 src/test/setup.ts
-src/test/render.tsx
+src/proxy.test.ts
 ```
 
-Co-locate focused `*.test.ts` or `*.test.tsx` files beside their subjects unless a test is a reusable integration fixture or an E2E journey.
+Focused `*.test.ts` and `*.test.tsx` files are co-located beside their subjects; the complete browser journey remains under `tests/e2e`. A speculative provider-aware `src/test/render.tsx` helper was not created because the component tests did not need it.
 
-### 9.4 Existing files to adapt or move
+### 9.4 Existing files adapted or moved
 
 ```text
 src/app/layout.tsx
@@ -359,7 +394,7 @@ src/features/listings/utils/listing-labels.ts
   -> retain for Chapter 2 unless new generated enum typing requires a narrow adaptation
 ```
 
-### 9.5 Existing files to replace/delete after migration
+### 9.5 Existing files replaced/deleted after migration
 
 ```text
 src/lib/api/api-client.ts
@@ -966,11 +1001,11 @@ ESLint restrictions must enforce:
 
 Use named exports except for Next.js file-convention defaults. Prefer kebab-case files. Avoid broad `index.ts` barrels.
 
-## 20. Ordered Implementation Checkpoints
+## 20. Completed Implementation Checkpoints
 
-Implement in this order. Do not combine deletion with an unverified replacement.
+Implemented in this order. The migration preserved the rule not to combine deletion with an unverified replacement.
 
-### Checkpoint 1A — Safety, dependencies, and scripts
+### Checkpoint 1A — Safety, dependencies, and scripts — complete
 
 Scope:
 
@@ -991,7 +1026,7 @@ empty/foundation Vitest and Playwright configs load successfully
 git diff --check
 ```
 
-### Checkpoint 1B — Environment and media configuration
+### Checkpoint 1B — Environment and media configuration — complete
 
 Scope:
 
@@ -1010,7 +1045,7 @@ no NEXT_PUBLIC_API_BASE_URL exists
 git diff --check
 ```
 
-### Checkpoint 1C — Locale router and dictionary boundary
+### Checkpoint 1C — Locale router and dictionary boundary — complete
 
 Scope:
 
@@ -1032,7 +1067,7 @@ client boundary does not import full dictionaries
 git diff --check
 ```
 
-### Checkpoint 1D — Styling, theme, and public shell
+### Checkpoint 1D — Styling, theme, and public shell — complete
 
 Scope:
 
@@ -1050,7 +1085,7 @@ responsive shell has no unintended overflow
 git diff --check
 ```
 
-### Checkpoint 1E — OpenAPI, API, query, page, and error foundation
+### Checkpoint 1E — OpenAPI, API, query, page, and error foundation — complete
 
 Scope:
 
@@ -1071,7 +1106,7 @@ generated output contains no manual domain/query logic
 git diff --check
 ```
 
-### Checkpoint 1F — Migration and obsolete scaffold removal
+### Checkpoint 1F — Migration and obsolete scaffold removal — complete
 
 Scope:
 
@@ -1091,7 +1126,7 @@ Git status contains no unexplained deletion or untracked file
 git diff --check
 ```
 
-### Checkpoint 1G — Browser/accessibility verification
+### Checkpoint 1G — Browser/accessibility verification — complete
 
 Scope:
 
@@ -1108,7 +1143,7 @@ manual checklist passes in both locales and themes
 git diff --check
 ```
 
-### Checkpoint 1H — Documentation and closeout
+### Checkpoint 1H — Documentation and closeout — complete
 
 Scope:
 
@@ -1129,7 +1164,7 @@ final status/diff review is precise
 
 ## 21. Verification Commands
 
-During implementation, use focused tests after each checkpoint. Before completion run:
+Use focused tests during later work and retain this Chapter 1 closeout command set as the foundation baseline:
 
 ```powershell
 npm run format:check
@@ -1148,7 +1183,7 @@ git diff --stat
 
 `api:generate` and `api:check` require the backend Development Swagger document to be available. Run generation first, review its exact diff, then run the non-writing drift check. No committed secret, password, live token, upload, build output, or test artifact is allowed.
 
-If the implementation environment cannot launch Playwright or Development Swagger, do not declare the chapter complete. Report the exact blocked gate and leave the chapter status as incomplete.
+Chapter 1 closeout ran the normal suite with the backend stopped. Development Swagger was started only for explicit generation and drift verification, then stopped. Any future closeout that cannot launch Playwright or Development Swagger must report that gate rather than claiming an equivalent result.
 
 ## 22. Acceptance Criteria
 
@@ -1235,7 +1270,7 @@ backend changes
 
 ## 24. Completion Gate
 
-Chapter 1 is complete only when all of the following are true:
+Chapter 1 met all of the following completion conditions:
 
 1. Checkpoints 1A–1H are implemented in order and their focused checks pass.
 2. `/`, `/mk`, and `/en` satisfy the routing and document-language contract.
@@ -1250,11 +1285,26 @@ Chapter 1 is complete only when all of the following are true:
 11. README, `AGENTS.md`, frontend context, and this chapter reflect the implemented result.
 12. Final Git status and diff contain only intended Chapter 1 work.
 
-Do not mark the chapter complete if a required browser, accessibility, build, or OpenAPI gate was skipped.
+No browser, accessibility, build, or OpenAPI gate was skipped. Final OpenAPI verification used the backend Development Swagger document (`OpenAPI 3.0.4`, `RealEstate.Api`, 36 paths); `api:generate` produced no tracked diff, `api:check` passed, and `src/contracts/generated/openapi.d.ts` retained SHA-256 `251b7ce03810845a8fa37f9940518a310d7f142f98b4467478c582c980d1e0a5`.
+
+The final browser matrix remained Chromium-only. Browser coverage passed 22 tests in one Playwright file, including locale selection/persistence, metadata, theme keyboard behavior/persistence, skip-link focus, landmarks/headings, narrow reflow, touch targets, reduced motion, and two axe scenarios. Macedonian Light and English Dark each reported zero axe violations, including zero serious or critical violations. The 200% reflow review used the documented reduced-CSS-viewport equivalent rather than claiming native browser zoom.
+
+The final 1H tracked scope was documentation only:
+
+```text
+README.md
+AGENTS.md
+docs/frontend-context.md
+docs/chapters/chapter-1-frontend-foundation.md
+```
+
+Five verified unresolved quality items remain intentionally owned by `docs/frontend-quality-handoff.md`: `FE-TOOL-01`, `FE-TOOL-02`, `FE-TOOL-03`, `FE-TOOL-04`, and `FE-DEP-01`. They do not invalidate the completed foundation gates and were not investigated or changed during 1H.
+
+Recorded deviations are limited to the Windows terminal using `npm.cmd` when PowerShell blocks `npm.ps1` while source-controlled commands remain portable `npm`, the 200% CSS-viewport-equivalent method described above, and the known non-blocking warnings retained in the quality handoff. No application, test, tooling configuration, dependency, lockfile, generated contract, environment example, or backend file changed in 1H.
 
 ## 25. Chapter 2 Handoff
 
-After Chapter 1 completion, the next Codex session should plan and implement only:
+The next Codex session should plan and implement only:
 
 ```text
 Chapter 2 — Public Listings Catalog Vertical Slice

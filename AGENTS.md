@@ -2,377 +2,101 @@
 
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may differ from training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing code and heed deprecation notices.
 
 <!-- END:nextjs-agent-rules -->
 
 # AGENTS.md — RealEstate Frontend Instructions
 
-## Project
+## Project and workflow
 
-This repository is the frontend for a real estate platform for North Macedonia.
+This repository is the Next.js frontend for a real-estate platform focused on North Macedonia. The separate `realestate-backend` repository owns backend behavior. Never invent endpoints or hand-maintain backend contracts; use the generated OpenAPI declarations and confirmed backend contract.
 
-The backend foundation already exists in the separate `realestate-backend` repository.
+Inspect existing files before adding structure. Keep each branch to one bounded checkpoint and keep changes small, evidence-based, and within the requested product phase. Chapter 1 is complete; Chapter 2 — Public Listings Catalog Vertical Slice is next.
 
-Do not invent backend endpoints. Use the existing backend API contract unless explicitly asked to change it.
-
----
-
-## Current frontend stack
-
-- Next.js
-- TypeScript
-- App Router
-- Route groups
-- i18n foundation
-- Theme system
-- Shared components
-- Feature-based structure
-
-Always inspect existing files before adding new structure.
-
----
-
-## Current structure
-
-```text
-src/
-  app/
-    (admin)/
-    (auth)/
-    (dashboard)/
-    (public)/
-      listings/
-        page.tsx
-    favicon.ico
-    globals.css
-    layout.tsx
-
-  components/
-    shared/
-      feedback/
-      layout/
-      providers/
-      theme/
-      ui/
-
-  config/
-    navigation.ts
-    routes.ts
-    site.ts
-
-  features/
-    admin/
-    auth/
-    dashboard/
-    listings/
-      components/
-      data/
-      hooks/
-      services/
-      types/
-      utils/
-
-  i18n/
-    dictionaries/
-      en.ts
-      mk.ts
-      index.ts
-    types.ts
-    index.ts
-    locales.ts
-
-  lib/
-    api/
-    env/
-    utils/
-
-  types/
-```
-
----
-
-## Folder rules
-
-Use `src/app` only for routing/pages/layouts.
-
-Use `src/components/shared` only for reusable app-wide UI.
-
-Examples:
-
-```text
-Button
-Input
-Select
-Card
-Header
-Footer
-ThemeToggle
-Toast/feedback
-```
-
-Use `src/features/listings` for listing-specific logic.
-
-Examples:
-
-```text
-ListingCard
-ListingsGrid
-ListingsFilters
-ListingsPagination
-listings-service.ts
-listing.ts
-listing-filters.ts
-```
-
-Use `src/lib/api` for generic API infrastructure.
-
-Examples:
-
-```text
-api-client.ts
-api-config.ts
-```
-
-Do not put listing-specific API logic directly in `lib/api`.
-
-Correct split:
-
-```text
-src/lib/api/api-client.ts
-  generic fetch wrapper
-
-src/features/listings/services/listings-service.ts
-  listing-specific backend calls
-```
-
----
-
-## Backend API contract
-
-Backend local URL:
-
-```text
-http://localhost:5231
-```
-
-Listings endpoint:
-
-```http
-GET /api/listings
-```
-
-Supported query parameters:
-
-```text
-lang
-listingType
-propertyType
-minPrice
-maxPrice
-city
-neighborhood
-page
-pageSize
-```
-
-Example:
-
-```http
-GET http://localhost:5231/api/listings?lang=en&page=1&pageSize=20
-```
-
-Response shape:
-
-```json
-{
-  "items": [],
-  "page": 1,
-  "pageSize": 20,
-  "totalCount": 0,
-  "totalPages": 0,
-  "hasNextPage": false,
-  "hasPreviousPage": false
-}
-```
-
-Single listing endpoint:
-
-```http
-GET /api/listings/{id}?lang=en
-GET /api/listings/{id}?lang=mk
-```
-
-Create listing endpoint exists in backend:
-
-```http
-POST /api/listings
-```
-
-But frontend MVP should first focus on public listing discovery before seller/admin creation UI.
-
----
-
-## Listing backend response fields
-
-Listing item shape:
-
-```ts
-type Listing = {
-  id: string;
-  listingType: "Sale" | "Rent";
-  propertyType: "Apartment" | "House";
-  status: "Draft" | "Active" | "Reserved" | "Sold" | "Rented" | "Archived";
-  price: number;
-  currency: string;
-  areaSquareMeters: number;
-  pricePerSquareMeter: number;
-  rooms: number | null;
-  bathrooms: number | null;
-  floor: number | null;
-  totalFloors: number | null;
-  yearBuilt: number | null;
-  latitude: number | null;
-  longitude: number | null;
-  languageCode: string;
-  title: string;
-  description: string | null;
-  addressLine: string | null;
-  city: string | null;
-  neighborhood: string | null;
-};
-```
-
----
-
-## i18n rules
-
-The frontend handles fixed app label translations.
-
-Examples:
-
-```text
-Apartment / Стан
-House / Куќа
-Sale / Продажба
-Rent / Изнајмување
-```
-
-The backend stores custom listing text translations.
-
-Examples:
-
-```text
-title
-description
-city
-neighborhood
-addressLine
-```
-
-Use existing `src/i18n` structure. Do not replace the i18n system.
-
----
-
-## First frontend MVP tasks
-
-Start with:
-
-```text
-feature/listings-api-client
-```
-
-This should add or update:
-
-```text
-src/lib/api/api-client.ts
-src/features/listings/types/listing.ts
-src/features/listings/types/paged-response.ts
-src/features/listings/types/listing-filters.ts
-src/features/listings/services/listings-service.ts
-```
-
-Then:
-
-```text
-feature/listings-page
-```
-
-Build:
-
-```text
-/listings
-```
-
-Using:
-
-```text
-src/app/(public)/listings/page.tsx
-```
-
-Then add:
-
-```text
-ListingCard
-ListingsGrid
-ListingsFilters
-ListingsPagination
-```
-
----
-
-## What not to build yet
-
-Do not build these unless explicitly requested:
-
-```text
-auth UI
-dashboard UI
-admin UI
-payments
-subscriptions
-chat
-advanced AI
-saved searches
-favorites
-map drawing tools
-analytics dashboard
-seller upload flow
-```
-
-Map view can come after the listing page and filters work.
-
----
-
-## Development rules
-
-Before finishing a task, run the existing validation commands from `package.json`.
-
-Use the package manager already present in the repo.
-
-Because `package-lock.json` exists, prefer:
+Before work, inspect the exact repository state:
 
 ```bash
-npm install
-npm run lint
-npm run build
+git branch --show-current
+git status --short --branch
+git status --short --untracked-files=all
+git diff --name-status
 ```
 
-If scripts differ, inspect `package.json` first.
+Unexpected tracked or untracked work belongs to the user until proven otherwise. Do not use broad `git reset`, `git clean`, `git checkout`, or destructive migration commands. Never use `git add .`. Do not stage, commit, merge, or push unless explicitly authorized. Ignored `docs/planning/` files are local review evidence and are never committed.
 
----
+## Runtime and routing
 
-## AI/Codex rules
+- Use Next.js 16 App Router, React 19, TypeScript, npm, and the existing Tailwind CSS 4 pipeline.
+- Canonical user-facing routes are always locale-prefixed with `/mk` or `/en`.
+- `src/proxy.ts` owns locale normalization only: valid locale cookie, supported browser language, then Macedonian fallback. It performs no backend fetch or authorization.
+- Root `<html>`, `<body>`, and document language belong to `src/app/[locale]/layout.tsx`.
+- Treat route `params` and `searchParams` as asynchronous values under Next.js 16 conventions.
+- Server Components are the default. Client Components are narrow interaction islands only.
+- Do not create speculative route groups, unsupported navigation destinations, empty feature folders, or broad `index.ts` barrels.
 
-Before writing code:
+## Ownership boundaries
 
-1. Read this file.
-2. Inspect existing structure.
-3. Read relevant Next.js docs from `node_modules/next/dist/docs/`.
-4. Do not restructure the project unless explicitly asked.
-5. Do not invent backend endpoints.
-6. Keep changes small and task-focused.
-7. Follow the existing feature-folder style.
-8. Prefer typed API calls and typed response models.
-9. Keep shared UI separate from feature-specific UI.
-10. Run lint/build before completing work.
+- `src/app` owns routes, metadata, composition, loading/error/not-found boundaries, and layouts. Keep domain operations out of route files.
+- `src/features` owns domain operations, feature models and mappings, validation, and feature UI.
+- `src/components/ui` is reusable and domain-free.
+- `src/components/shell` owns application chrome and calls no domain endpoint.
+- `src/components/feedback` contains generic feedback presentation.
+- `src/lib` contains generic infrastructure and cannot import features, components, or app code.
+- `src/contracts/generated` contains generated wire declarations only.
+- Features cannot import `app`, and one feature cannot deep-import another feature's internals.
+- Server-only modules use `.server.ts` naming and `server-only` protection where applicable.
+- Never create a barrel that mixes client and server modules.
+- Use named exports except where Next.js file conventions require defaults. Prefer kebab-case filenames.
+
+## Internationalization, metadata, and media
+
+- Keep the custom two-locale dictionary system; do not add an external i18n framework.
+- Load complete dictionaries on the server. Pass only the small translated subset required by client controls.
+- Route helpers require a locale and safely preserve path parameters and query values.
+- Fixed UI labels are frontend translations; backend-authored listing text remains backend content.
+- Public metadata is localized and uses validated `SITE_URL` for metadata base, canonicals, and language alternatives.
+- Media accepts only validated `/uploads/...` paths through the central resolver and the exact configured media origin.
+
+## API and environment rules
+
+- `API_BASE_URL`, `MEDIA_BASE_URL`, and `SITE_URL` are validated server/build configuration. Do not add `NEXT_PUBLIC_API_BASE_URL` or another browser-readable backend origin.
+- Server Components call feature-owned server operations directly, not this application's Route Handlers.
+- Future browser-originated backend operations use explicit same-origin Route Handlers. Never add a catch-all proxy.
+- Use native `fetch`; do not add Axios, React Query, or another transport dependency without an approved architecture change.
+- Generic transport remains server-only and feature operations remain feature-owned.
+- Generated OpenAPI output is committed wire typing only and must never be hand-edited.
+- Build and tests consume committed generated types. API generation and drift checking are explicit operations requiring Development Swagger.
+- Never silently accept generated OpenAPI drift.
+- Do not put access tokens in browser storage. Future authenticated browser calls use the locked BFF/HttpOnly-cookie boundary.
+
+## Testing and validation
+
+- Vitest and Testing Library own unit and synchronous component tests.
+- Playwright and axe own complete Next.js/browser behavior. The current browser matrix is Chromium-only.
+- `tests/e2e/**` remains excluded from Vitest discovery.
+- Normal `npm run check`, builds, unit tests, and E2E tests must not contact the backend.
+- Stop browser, frontend, and backend processes after verification.
+- `.next`, coverage, Playwright output, and planning artifacts remain ignored and untracked.
+
+Use the scripts in `package.json`; a final implementation validation normally includes:
+
+```bash
+npm run format:check
+npm run lint
+npm run typecheck
+npm run test
+npm run check
+npm run build
+npm run test:e2e
+```
+
+Use portable `npm` syntax in source-controlled files and documentation. On Windows only, `npm.cmd` may be used from a terminal when PowerShell execution policy blocks `npm.ps1`.
+
+Do not run `npm ci` while `FE-TOOL-01` remains unresolved. Do not delete or reinstall healthy `node_modules`, run dependency upgrades without scope, or run `npm audit fix --force`.
+
+## Product boundaries
+
+The public anonymous journey is implemented chapter by chapter: listings catalog, complete search/filters, listing details/comparables, then public agencies and anonymous-journey hardening. Authentication, sessions, profiles, listing mutations/uploads, agency workspaces, administration, payments, chat, saved searches/favorites, maps, analytics, and AI claims remain out of scope until explicitly planned.
+
+Preserve truthful UI: do not claim real data, capabilities, verification, valuation, market averages, scoring, or workflows that the frontend and backend do not yet provide.
