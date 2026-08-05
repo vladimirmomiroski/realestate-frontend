@@ -12,21 +12,15 @@ The completed backend contracts are authoritative for API behavior. Stale fronte
 
 ```text
 Backend: complete through Chapter 12 and ready for frontend integration
-Frontend verdict: selectively rebuild
-Current frontend milestone: Chapter 1 ready for implementation
-Current detailed chapter: docs/chapters/chapter-1-frontend-foundation.md
-Next product phase: localized public discovery
+Frontend foundation: Chapter 1 complete
+Remaining Chapter 1 checkpoints: none
+Completed chapter record: docs/chapters/chapter-1-frontend-foundation.md
+Next implementation phase: Chapter 2 — Public Listings Catalog Vertical Slice
 ```
 
-The frontend contains a valid Next.js/npm/TypeScript foundation and several reusable ideas, but it does not contain a reliable product architecture yet. Existing routes, API types, API transport, navigation, metadata, locale boundary, and placeholder feature structure reflect an earlier and smaller backend contract.
+Chapter 1 completed the selective migration to the accepted architecture. The repository now has canonical `/mk` and `/en` routing, server-loaded dictionaries, a narrow client translation boundary, localized metadata, validated environment and media configuration, semantic light/dark styling, an accessible public shell, generated backend wire types, generic server-only API infrastructure, and deterministic unit/component/browser/accessibility verification. Obsolete route, API-client, listing-service, handwritten wire-DTO, theme, i18n, and empty scaffold files were removed only after their replacements compiled and passed their gates.
 
-The accepted approach is therefore:
-
-- keep sound tooling and narrowly useful code;
-- adapt dictionaries, formatters, semantic-token ideas, and theme support;
-- replace stale API, routing, environment, metadata, and product UI foundations;
-- remove obsolete or speculative scaffold only after replacements are working;
-- avoid a rewrite whose only purpose is making the code different.
+The landing page remains intentionally data-free. Chapter 2 owns the first feature-specific listing operation, handwritten listing view model, catalog route, and real backend-backed product UI.
 
 Every implementation session must begin with:
 
@@ -121,9 +115,26 @@ Global state    none unless future evidence establishes a need
 - Public agency pages are rendered according to the backend contract, but only Active agencies are indexable. The frontend must not present another agency state as verified.
 - Initial sitemap output contains stable public routes. Do not crawl every listing or agency at build time without a bounded discovery/feed contract.
 
-## 5. Target Folder Structure and Ownership
+## 5. Folder Structure and Ownership
 
-The long-term structure is shown below. Later route groups and features must not be created as empty placeholders.
+The implemented Chapter 1 structure is:
+
+```text
+scripts/                       OpenAPI generation and drift checking
+tests/e2e/                     Chromium Playwright and axe foundation suite
+src/app/[locale]/              localized root, boundaries, and public route group
+src/components/                ui, shell, feedback, and provider boundaries
+src/config/                    environment, navigation, routes, and site metadata config
+src/contracts/generated/       committed generated wire declarations
+src/features/listings/utils/   retained locale-aware formatter/label utilities
+src/i18n/                      locale selection and server/client dictionary boundaries
+src/lib/                       generic API, media, and utility infrastructure
+src/styles/                    global baseline and semantic tokens
+src/test/                      Vitest setup
+src/proxy.ts                   locale normalization only
+```
+
+The long-term ownership shape below guides later chapters. Later route groups and features must not be created as empty placeholders.
 
 ```text
 scripts/
@@ -363,7 +374,7 @@ prettier-plugin-tailwindcss
 @types/react-dom
 ```
 
-### Add in Chapter 1
+### Installed in Chapter 1
 
 Runtime:
 
@@ -415,9 +426,9 @@ a generated runtime API SDK
 
 Retain the current PostCSS override unless dependency evidence proves it is obsolete. Dependency additions must have an owning capability and chapter; do not add packages for hypothetical future use.
 
-## 8. Existing-Code Migration Map
+## 8. Completed Chapter 1 Migration
 
-### Keep or adapt
+### Retained or adapted
 
 ```text
 package manager and lockfile
@@ -432,7 +443,7 @@ favicon until real branding replaces it
 CLAUDE.md reference to AGENTS.md
 ```
 
-### Move or replace
+### Replaced during Chapter 1
 
 ```text
 root layout                   -> locale root layout
@@ -447,7 +458,7 @@ listing service               -> feature-owned server operations
 homepage demo                 -> localized discovery entry point
 ```
 
-### Delete only after replacement and validation
+### Removed after replacement and validation
 
 ```text
 obsolete demo UI
@@ -462,9 +473,9 @@ Tracked and untracked files must always be inventoried separately. If unexpected
 
 ## 9. Roadmap: Chapters 1–5
 
-### Chapter 1 — Frontend Operating System and Localized Public Shell
+### Chapter 1 — Frontend Operating System and Localized Public Shell — complete
 
-Establish locale-prefixed routing, accessible public shell, environment validation, semantic tokens, theme ownership, generated API types, generic transport/error/media foundations, import rules, and the complete test harness.
+Completed locale-prefixed routing, accessible public shell, environment validation, semantic tokens, theme ownership, localized metadata, generated API types, generic transport/error/media foundations, import rules, and the unit/component/browser/accessibility harness. Final evidence: 16 Vitest files with 133 passing tests; one Chromium Playwright file with 22 passing tests; zero axe violations on Macedonian Light and English Dark; successful `/mk` and `/en` production routes; and exact OpenAPI generation/drift checks against Development Swagger.
 
 ### Chapter 2 — Public Listings Catalog Vertical Slice
 
@@ -550,17 +561,21 @@ The following phase should then plan BFF authentication, registration/session-ex
 The next Codex session must implement only:
 
 ```text
-Chapter 1 — Frontend Operating System and Localized Public Shell
+Chapter 2 — Public Listings Catalog Vertical Slice
 ```
 
 Required reading order:
 
 1. `AGENTS.md`
 2. this file
-3. `docs/chapters/chapter-1-frontend-foundation.md`
+3. the Chapter 2 specification when it is approved
 4. the narrow installed Next.js 16 documentation relevant to files being changed
-5. the exact current files in Chapter 1 scope
+5. the exact current files in Chapter 2 scope
 
-Do not broadly reread the backend. The Chapter 1 specification contains the integration rules needed for implementation. Inspect a narrow backend/OpenAPI detail only if the implementation encounters a genuine contradiction.
+Chapter 1 has no remaining checkpoint. Normal format, lint, typecheck, Vitest, aggregate check, build, and Playwright execution use committed generated types and do not require a running backend. Explicit `api:generate` and `api:check` operations require the backend Development Swagger document.
 
-Before writing code, recheck Git state. Implement checkpoints in order, run focused tests during each checkpoint, and complete every gate in the Chapter 1 document before declaring the chapter complete.
+`docs/frontend-quality-handoff.md` remains the live issue register and currently contains five unresolved entries: `FE-TOOL-01`, `FE-TOOL-02`, `FE-TOOL-03`, `FE-TOOL-04`, and `FE-DEP-01`. Their full evidence and remediation directions belong only in that handoff.
+
+Do not broadly reread the backend. The frontend context and generated OpenAPI declarations contain the normal integration rules. Inspect a narrow backend/OpenAPI detail only when Chapter 2 encounters a genuine wire-contract contradiction.
+
+Before writing code, recheck Git state. Keep Chapter 2 bounded to its approved checkpoints and do not reopen the completed Chapter 1 architecture without concrete evidence.
