@@ -15,6 +15,14 @@ const explicitThemeCases = [
   { locale: "mk", dictionary: mk, theme: "light" },
   { locale: "en", dictionary: en, theme: "dark" },
 ] as const;
+const reactScriptWarning =
+  "Encountered a script tag while rendering React component.";
+const hydrationWarningFragments = [
+  "Hydration failed",
+  "hydrated but some attributes",
+  "did not match",
+  "server rendered HTML",
+] as const;
 
 const backendRequests = new WeakMap<Page, string[]>();
 
@@ -63,6 +71,44 @@ async function selectTheme(page: Page, label: string, theme: "light" | "dark") {
     new RegExp(`(^|\\s)${theme}(\\s|$)`)
   );
   await expect(button).toHaveAttribute("aria-pressed", "true");
+}
+
+async function expectCorrectFirstThemeFrame(
+  page: Page,
+  storedTheme: "system" | "light" | "dark"
+) {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              __firstThemeFrame?: {
+                className: string;
+                expectedTheme: "light" | "dark";
+                storedTheme: string | null;
+              };
+            }
+          ).__firstThemeFrame
+      )
+    )
+    .not.toBeUndefined();
+
+  const frame = await page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __firstThemeFrame?: {
+            className: string;
+            expectedTheme: "light" | "dark";
+            storedTheme: string | null;
+          };
+        }
+      ).__firstThemeFrame
+  );
+
+  expect(frame?.storedTheme ?? "system").toBe(storedTheme);
+  expect(frame?.className.split(/\s+/)).toContain(frame?.expectedTheme);
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -221,12 +267,58 @@ test("locale switching preserves route/query and persists through the proxy", as
   await expect(page).toHaveURL(`${appOrigin}/mk`);
 });
 
-test("System, Light, and Dark are keyboard selectable and persist", async ({
+test("theme initialization, controls, persistence, and locale navigation remain warning-free", async ({
   page,
 }) => {
+  let phase = "initial load";
+  const scriptWarnings: Array<{ phase: string; text: string }> = [];
+  const hydrationWarnings: Array<{ phase: string; text: string }> = [];
+
+  page.on("console", (message) => {
+    const text = message.text();
+
+    if (text.includes(reactScriptWarning)) {
+      scriptWarnings.push({ phase, text });
+    }
+
+    if (hydrationWarningFragments.some((fragment) => text.includes(fragment))) {
+      hydrationWarnings.push({ phase, text });
+    }
+  });
+
   await page.goto("/en");
   await page.evaluate(() => localStorage.removeItem("theme"));
+
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.addInitScript(() => {
+    requestAnimationFrame(() => {
+      const storedTheme = localStorage.getItem("theme");
+      const expectedTheme =
+        storedTheme === "light" || storedTheme === "dark"
+          ? storedTheme
+          : window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+
+      (
+        window as typeof window & {
+          __firstThemeFrame?: {
+            className: string;
+            expectedTheme: "light" | "dark";
+            storedTheme: string | null;
+          };
+        }
+      ).__firstThemeFrame = {
+        className: document.documentElement.className,
+        expectedTheme,
+        storedTheme,
+      };
+    });
+  });
+
+  phase = "system reload";
   await page.reload();
+  await expectCorrectFirstThemeFrame(page, "system");
 
   const system = page.getByRole("button", { name: en.theme.system });
   const light = page.getByRole("button", { name: en.theme.light });
@@ -235,22 +327,58 @@ test("System, Light, and Dark are keyboard selectable and persist", async ({
   await expect(system).toHaveAttribute("aria-pressed", "true");
   await expect(light).toHaveAttribute("aria-pressed", "false");
   await expect(dark).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("html")).toHaveClass(/(^|\s)dark(\s|$)/);
 
+  phase = "light selection";
   await tabTo(page, light);
   await expect(light).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("html")).toHaveClass(/(^|\s)light(\s|$)/);
   await expect(light).toHaveAttribute("aria-pressed", "true");
 
+  phase = "dark selection";
   await page.keyboard.press("Tab");
   await expect(dark).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("html")).toHaveClass(/(^|\s)dark(\s|$)/);
   await expect(dark).toHaveAttribute("aria-pressed", "true");
 
+  phase = "dark reload";
   await page.reload();
+  await expectCorrectFirstThemeFrame(page, "dark");
   await expect(page.locator("html")).toHaveClass(/(^|\s)dark(\s|$)/);
   await expect(dark).toHaveAttribute("aria-pressed", "true");
+
+  phase = "locale navigation";
+  await page.getByRole("link", { name: en.locale.mk }).click();
+  await expect(page).toHaveURL(`${appOrigin}/mk`);
+  await expect(page.locator("html")).toHaveAttribute("lang", "mk");
+  await expect(page.locator("html")).toHaveClass(/(^|\s)dark(\s|$)/);
+  await expect(
+    page.getByRole("button", { name: mk.theme.dark })
+  ).toHaveAttribute("aria-pressed", "true");
+
+  phase = "system selection";
+  const macedonianSystem = page.getByRole("button", {
+    name: mk.theme.system,
+  });
+  await macedonianSystem.click();
+  await expect(macedonianSystem).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("html")).toHaveClass(/(^|\s)dark(\s|$)/);
+
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveClass(/(^|\s)light(\s|$)/);
+
+  phase = "system persistence reload";
+  await page.reload();
+  await expectCorrectFirstThemeFrame(page, "system");
+  await expect(page.locator("html")).toHaveClass(/(^|\s)light(\s|$)/);
+  await expect(
+    page.getByRole("button", { name: mk.theme.system })
+  ).toHaveAttribute("aria-pressed", "true");
+
+  expect(scriptWarnings).toEqual([]);
+  expect(hydrationWarnings).toEqual([]);
 });
 
 test("skip link becomes visible and transfers focus to the real main landmark", async ({
