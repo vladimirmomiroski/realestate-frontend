@@ -13,6 +13,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange
+      scriptProps={{
+        type: typeof window === "undefined" ? undefined : "text/plain",
+      }}
     >
       {children}
     </NextThemesProvider>

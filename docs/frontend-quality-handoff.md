@@ -25,13 +25,6 @@ It is a live source-controlled issue register, not project history, a completed-
   - Smallest safe direction: Keep the issue open without a repository configuration change. Preserve the next failed disposable tree before reinstalling, including its per-run verbose/timing logs, `npm ls --depth=0` output, required-file checks, exact npm shim/CLI paths, and contemporaneous Node/npm process and Windows security-event evidence; then repeat the same tracked-files archive at `C:\fe01` and under an already-installed supported alternate Node LTS version if one is available.
   - Classification: Local tooling reliability issue; not an application-code defect and not currently proven to affect CI.
 
-- **FE-TOOL-04: next-themes bootstrap emits a React client-render warning**
-  - Area: Next.js 16 and React 19 theme bootstrap during client locale navigation.
-  - Risk: React warns that a script encountered during client rendering is not executed, so a future route or provider change could affect theme initialization even though current behavior passes.
-  - Evidence: The final Chromium suite reproducibly emits the script-tag warning during client locale/theme navigation with `next-themes`; System, Light, Dark, and persisted reload behavior all pass without a hydration mismatch.
-  - Smallest safe direction: Reproduce the warning in an isolated tooling branch, confirm upstream compatibility for the installed Next.js, React, and `next-themes` versions, and change provider placement or dependency versions only with theme-flash and persistence regression coverage.
-  - Classification: Non-blocking integration warning; no current functional defect.
-
 - **FE-DEP-01: Installation summary and explicit npm audit results have been inconsistent**
   - Area: Dependency-security reporting.
   - Risk: `npm install` or `npm ci` may report advisory counts that differ from immediately repeated explicit audit commands, making the real remediation state unclear.
