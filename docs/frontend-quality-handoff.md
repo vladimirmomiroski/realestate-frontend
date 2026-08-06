@@ -25,13 +25,6 @@ It is a live source-controlled issue register, not project history, a completed-
   - Smallest safe direction: Keep the issue open without a repository configuration change. Preserve the next failed disposable tree before reinstalling, including its per-run verbose/timing logs, `npm ls --depth=0` output, required-file checks, exact npm shim/CLI paths, and contemporaneous Node/npm process and Windows security-event evidence; then repeat the same tracked-files archive at `C:\fe01` and under an already-installed supported alternate Node LTS version if one is available.
   - Classification: Local tooling reliability issue; not an application-code defect and not currently proven to affect CI.
 
-- **FE-TOOL-02: Vitest configuration depends on tooling behavior marked for future change**
-  - Area: Vitest/Vite configuration loading.
-  - Risk: Vite warns that ESM syntax in `vitest.config.ts` is currently loaded through a CommonJS package boundary and may behave differently when the native config loader becomes the default.
-  - Evidence: Vitest passes, but emits the native-loader compatibility warning for `vitest.config.ts`.
-  - Smallest safe direction: Test the future loader behavior in an isolated tooling-maintenance branch before changing the project-wide module boundary or configuration filename.
-  - Classification: Non-blocking future compatibility risk.
-
 - **FE-TOOL-03: vite-tsconfig-paths may become redundant**
   - Area: Vitest path-alias resolution.
   - Risk: The project may retain an unnecessary dependency after Vite's native TypeScript-path resolution becomes the preferred supported mechanism.
