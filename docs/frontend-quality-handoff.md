@@ -25,13 +25,6 @@ It is a live source-controlled issue register, not project history, a completed-
   - Smallest safe direction: Keep the issue open without a repository configuration change. Preserve the next failed disposable tree before reinstalling, including its per-run verbose/timing logs, `npm ls --depth=0` output, required-file checks, exact npm shim/CLI paths, and contemporaneous Node/npm process and Windows security-event evidence; then repeat the same tracked-files archive at `C:\fe01` and under an already-installed supported alternate Node LTS version if one is available.
   - Classification: Local tooling reliability issue; not an application-code defect and not currently proven to affect CI.
 
-- **FE-TOOL-03: vite-tsconfig-paths may become redundant**
-  - Area: Vitest path-alias resolution.
-  - Risk: The project may retain an unnecessary dependency after Vite's native TypeScript-path resolution becomes the preferred supported mechanism.
-  - Evidence: Vite reports that `vite-tsconfig-paths` is detected and native `resolve.tsconfigPaths` support is available.
-  - Smallest safe direction: Compare native path resolution against the current plugin in an isolated branch and remove the dependency only if all alias, test, lint, typecheck, and build behavior remains equivalent.
-  - Classification: Low-priority dependency simplification; no current functional defect.
-
 - **FE-TOOL-04: next-themes bootstrap emits a React client-render warning**
   - Area: Next.js 16 and React 19 theme bootstrap during client locale navigation.
   - Risk: React warns that a script encountered during client rendering is not executed, so a future route or provider change could affect theme initialization even though current behavior passes.
