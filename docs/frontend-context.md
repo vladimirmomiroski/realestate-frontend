@@ -15,12 +15,14 @@ Backend: complete through Chapter 12 and ready for frontend integration
 Frontend foundation: Chapter 1 complete
 Remaining Chapter 1 checkpoints: none
 Completed chapter record: docs/chapters/chapter-1-frontend-foundation.md
-Next implementation phase: Chapter 2 — Public Listings Catalog Vertical Slice
+Chapter 2 plan: docs/chapters/chapter-2-public-listings-catalog.md
+Chapter 2 implementation: not started
+Next implementation checkpoint: 2A — Localized catalog route frame
 ```
 
 Chapter 1 completed the selective migration to the accepted architecture. The repository now has canonical `/mk` and `/en` routing, server-loaded dictionaries, a narrow client translation boundary, localized metadata, validated environment and media configuration, semantic light/dark styling, an accessible public shell, generated backend wire types, generic server-only API infrastructure, and deterministic unit/component/browser/accessibility verification. Obsolete route, API-client, listing-service, handwritten wire-DTO, theme, i18n, and empty scaffold files were removed only after their replacements compiled and passed their gates.
 
-The landing page remains intentionally data-free. Chapter 2 owns the first feature-specific listing operation, handwritten listing view model, catalog route, and real backend-backed product UI.
+The landing page remains intentionally data-free. Chapter 2 owns the first feature-specific listing operation, handwritten listing view model, catalog route, and real backend-backed product UI. Its authoritative plan deliberately uses 17 small checkpoints (2A–2Q), normally targeting approximately 100–200 lines of product/implementation code per branch where practical. Tests and fixtures may make the total diff larger. Chapter 2 is planned, not started.
 
 Every implementation session must begin with:
 
@@ -392,7 +394,6 @@ Development:
 openapi-typescript
 vitest
 @vitejs/plugin-react
-vite-tsconfig-paths
 jsdom
 @testing-library/react
 @testing-library/user-event
@@ -405,9 +406,10 @@ jsdom
 ### Add when first used
 
 ```text
-Chapter 2: msw
 After Chapter 5 mutation-form phase: react-hook-form, @hookform/resolvers
 ```
+
+No Chapter 2 dependency is currently planned. Native fetch mocks and a small local HTTP fixture server cover the catalog's unit and server-rendered browser boundaries without adding MSW. Reconsider a mocking dependency only when a later concrete test boundary makes it materially simpler.
 
 ### Do not add during Chapters 1–5
 
@@ -479,7 +481,7 @@ Completed locale-prefixed routing, accessible public shell, environment validati
 
 ### Chapter 2 — Public Listings Catalog Vertical Slice
 
-Deliver the first real backend-backed route with listing cards, basic shareable filters, primary images, total count, pagination, and complete loading/empty/error handling.
+Planned in `docs/chapters/chapter-2-public-listings-catalog.md`; implementation has not started. Deliver the first real backend-backed route with listing cards, basic shareable filters, primary images, total count, pagination, and complete loading/empty/error handling. Implementation is split into small, reviewable checkpoints so the real card, search, media, density, Light/Dark, and responsive decisions can be evaluated incrementally.
 
 ### Chapter 3 — Complete Public Search and Filters
 
@@ -493,7 +495,7 @@ Build localized, indexable listing detail pages with complete apartment/house da
 
 Add public agency profiles/listings, agency attribution, homepage discovery entry, stable sitemap/robots policy, and the complete home-to-agency anonymous E2E journey.
 
-Do not create separate Chapter 2–5 specifications until implementation feedback is available and the next chapter is ready to begin.
+Do not create separate Chapter 3–5 specifications until Chapter 2 implementation feedback is available and the next chapter is ready to begin.
 
 ## 10. Locked and Revisitable Decisions
 
@@ -517,9 +519,17 @@ Do not create separate Chapter 2–5 specifications until implementation feedbac
 - backend permission and lifecycle authority;
 - no unsupported product features.
 
+### Revisitable after the Chapter 2 catalog review
+
+- broader frontend visual direction;
+- exact palette, spacing scale, and primitive APIs;
+- homepage composition and richer discovery imagery;
+- catalog-informed typography, density, card interaction, and breakpoint choices.
+
+Chapter 2 makes only the decisions needed for its catalog. Review these items from the finished interface before planning Chapter 3; do not turn that review into an automatic site-wide redesign.
+
 ### Revisitable after Chapter 5
 
-- exact palette, spacing scale, and primitive APIs;
 - public cache/revalidation duration;
 - filter prominence and mobile grouping;
 - an i18n framework if more locales or rich message needs justify it;
@@ -558,24 +568,26 @@ The following phase should then plan BFF authentication, registration/session-ex
 
 ## 12. Current Handoff
 
-The next Codex session must implement only:
+The authoritative Chapter 2 plan is:
 
 ```text
-Chapter 2 — Public Listings Catalog Vertical Slice
+docs/chapters/chapter-2-public-listings-catalog.md
 ```
+
+It is ready for checkpoint review but is not started. When implementation is explicitly authorized, begin with only Checkpoint 2A — Localized catalog route frame. Do not combine it with 2B or later work.
 
 Required reading order:
 
 1. `AGENTS.md`
 2. this file
-3. the Chapter 2 specification when it is approved
+3. `docs/chapters/chapter-2-public-listings-catalog.md`
 4. the narrow installed Next.js 16 documentation relevant to files being changed
 5. the exact current files in Chapter 2 scope
 
 Chapter 1 has no remaining checkpoint. Normal format, lint, typecheck, Vitest, aggregate check, build, and Playwright execution use committed generated types and do not require a running backend. Explicit `api:generate` and `api:check` operations require the backend Development Swagger document.
 
-`docs/frontend-quality-handoff.md` remains the live issue register and currently contains five unresolved entries: `FE-TOOL-01`, `FE-TOOL-02`, `FE-TOOL-03`, `FE-TOOL-04`, and `FE-DEP-01`. Their full evidence and remediation directions belong only in that handoff.
+`docs/frontend-quality-handoff.md` remains the live issue register and currently contains one unresolved entry: `FE-TOOL-01`. Its full evidence and remediation direction belong only in that handoff. It is not Chapter 2 architecture work.
 
 Do not broadly reread the backend. The frontend context and generated OpenAPI declarations contain the normal integration rules. Inspect a narrow backend/OpenAPI detail only when Chapter 2 encounters a genuine wire-contract contradiction.
 
-Before writing code, recheck Git state. Keep Chapter 2 bounded to its approved checkpoints and do not reopen the completed Chapter 1 architecture without concrete evidence.
+Before writing code, recheck Git state. Keep each Chapter 2 branch to the single authorized small checkpoint and do not reopen the completed Chapter 1 architecture without concrete evidence. Broader frontend visual planning remains deliberately open until the completed catalog can be reviewed in real browsers.

@@ -1,6 +1,6 @@
 # RealEstate Frontend
 
-The public frontend for a real-estate platform focused on North Macedonia. Chapter 1 is complete: the repository now provides the localized, accessible operating foundation for the public product. Chapter 2 will add the first backend-backed listings catalog; the current landing page does not render real listing data or implement authentication, saved searches, maps, dashboards, AI features, or agency workspaces.
+The public frontend for a real-estate platform focused on North Macedonia. Chapter 1 is complete: the repository now provides the localized, accessible operating foundation for the public product. Chapter 2 — Public Listings Catalog Vertical Slice is planned but not started; it will add the first backend-backed listings catalog through deliberately small implementation checkpoints. The current landing page does not render real listing data or implement authentication, saved searches, maps, dashboards, AI features, or agency workspaces.
 
 ## Current foundation
 
@@ -90,4 +90,4 @@ src/styles/              global baseline and semantic tokens
 tests/e2e/               real-browser Playwright and axe verification
 ```
 
-See `docs/frontend-context.md` for durable architecture and `docs/chapters/chapter-1-frontend-foundation.md` for the completed Chapter 1 record. `docs/frontend-quality-handoff.md` is the live register of verified unresolved frontend issues. Chapter 2 — Public Listings Catalog Vertical Slice is the next product chapter.
+See `docs/frontend-context.md` for durable architecture, `docs/chapters/chapter-1-frontend-foundation.md` for the completed Chapter 1 record, and `docs/chapters/chapter-2-public-listings-catalog.md` for the planned next chapter. `docs/frontend-quality-handoff.md` is the live register of verified unresolved frontend issues. Broader visual direction remains deliberately open until the real Chapter 2 catalog can be reviewed in the browser.
