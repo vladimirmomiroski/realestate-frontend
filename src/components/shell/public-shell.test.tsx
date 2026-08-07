@@ -43,5 +43,13 @@ describe("public shell", () => {
     expect(
       screen.getByRole("link", { name: "Skip to content" })
     ).toHaveAttribute("href", "#main-content");
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute(
+      "href",
+      "/en"
+    );
+    expect(screen.getByRole("link", { name: "Listings" })).toHaveAttribute(
+      "href",
+      "/en/listings"
+    );
   });
 });

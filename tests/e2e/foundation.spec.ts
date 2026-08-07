@@ -490,6 +490,7 @@ for (const { dictionary, locale, theme } of explicitThemeCases) {
       dictionary.accessibility.skipToContent,
       dictionary.common.appName,
       dictionary.navigation.home,
+      dictionary.navigation.listings,
       dictionary.locale.mk,
       dictionary.locale.en,
       dictionary.theme.system,
