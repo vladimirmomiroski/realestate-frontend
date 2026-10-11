@@ -1,5 +1,5 @@
 export type PublicListingType = "Sale" | "Rent";
-export type PublicPropertyType = "Apartment" | "House";
+export type PublicPropertyType = "Apartment" | "House" | "Commercial" | "Land";
 
 export type PublicListingCard = {
   id: string;
@@ -10,10 +10,10 @@ export type PublicListingCard = {
   areaSquareMeters: number;
   rooms?: number;
   pricePerSquareMeter?: number;
-  title?: string;
-  city?: string;
-  municipality?: string;
+  title: string;
+  city: string;
+  municipality: string;
   neighborhood?: string;
-  languageCode?: string;
+  languageCode: string;
   primaryImageUrl?: string;
 };

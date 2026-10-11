@@ -6,23 +6,23 @@ This is the authoritative living handoff for the RealEstate frontend. It records
 
 Use this document for durable project context. Use `docs/chapters/*.md` for implementation-ready chapter specifications. When implementation changes a lasting rule, update this document at chapter closeout so it continues to describe the actual system rather than its history.
 
-The completed backend contracts are authoritative for API behavior. Stale frontend or shared-product documents must not override the current backend context, Chapter 12 contract, or generated OpenAPI document.
+The completed backend contracts are authoritative for API behavior. Stale frontend or shared-product documents must not override the current backend context, definitive backend/frontend handoff, or generated OpenAPI document.
 
 ## 2. Current Status
 
 ```text
-Backend: complete through Chapter 12 and ready for frontend integration
+Backend: complete through Chapter 15; definitive backend/frontend handoff accepted
 Frontend foundation: Chapter 1 complete
 Remaining Chapter 1 checkpoints: none
 Completed chapter record: docs/chapters/chapter-1-frontend-foundation.md
 Chapter 2 plan: docs/chapters/chapter-2-public-listings-catalog.md
-Chapter 2 implementation: not started
-Next implementation checkpoint: 2A — Localized catalog route frame
+Chapter 2 implementation: 2A and 2B accepted; post-2B contract synchronization in review
+Next implementation checkpoint after contract-sync audit/commit: 2C — Server-side listings retrieval
 ```
 
 Chapter 1 completed the selective migration to the accepted architecture. The repository now has canonical `/mk` and `/en` routing, server-loaded dictionaries, a narrow client translation boundary, localized metadata, validated environment and media configuration, semantic light/dark styling, an accessible public shell, generated backend wire types, generic server-only API infrastructure, and deterministic unit/component/browser/accessibility verification. Obsolete route, API-client, listing-service, handwritten wire-DTO, theme, i18n, and empty scaffold files were removed only after their replacements compiled and passed their gates.
 
-The landing page remains intentionally data-free. Chapter 2 owns the first feature-specific listing operation, handwritten listing view model, catalog route, and real backend-backed product UI. Its authoritative plan deliberately uses 17 small checkpoints (2A–2Q), normally targeting approximately 100–200 lines of product/implementation code per branch where practical. Tests and fixtures may make the total diff larger. Chapter 2 is planned, not started.
+The landing page remains intentionally data-free. Chapter 2 owns the first feature-specific listing operation, handwritten listing view model, catalog route, and real backend-backed product UI. Its authoritative plan deliberately uses 17 small checkpoints (2A–2Q), normally targeting approximately 100–200 lines of product/implementation code per branch where practical. Tests and fixtures may make the total diff larger. Chapter 2A established the localized catalog frame, and 2B added the narrow listing card model and response adapter. The backend contract synchronization follows 2B before 2C. No listing retrieval or rendered catalog cards are implemented yet.
 
 Every implementation session must begin with:
 
@@ -481,7 +481,7 @@ Completed locale-prefixed routing, accessible public shell, environment validati
 
 ### Chapter 2 — Public Listings Catalog Vertical Slice
 
-Planned in `docs/chapters/chapter-2-public-listings-catalog.md`; implementation has not started. Deliver the first real backend-backed route with listing cards, basic shareable filters, primary images, total count, pagination, and complete loading/empty/error handling. Implementation is split into small, reviewable checkpoints so the real card, search, media, density, Light/Dark, and responsive decisions can be evaluated incrementally.
+Planned in `docs/chapters/chapter-2-public-listings-catalog.md`; 2A and 2B are accepted, and the post-2B backend contract synchronization is in review before 2C. Deliver the first real backend-backed route with listing cards, basic shareable filters, primary images, total count, pagination, and complete loading/empty/error handling. Implementation is split into small, reviewable checkpoints so the real card, search, media, density, Light/Dark, and responsive decisions can be evaluated incrementally.
 
 ### Chapter 3 — Complete Public Search and Filters
 
@@ -574,7 +574,7 @@ The authoritative Chapter 2 plan is:
 docs/chapters/chapter-2-public-listings-catalog.md
 ```
 
-It is ready for checkpoint review but is not started. When implementation is explicitly authorized, begin with only Checkpoint 2A — Localized catalog route frame. Do not combine it with 2B or later work.
+Checkpoints 2A and 2B are accepted in Git history. Complete the post-2B backend contract synchronization audit and commit before Checkpoint 2C — Server-side listings retrieval. Keep 2C as a separate bounded implementation.
 
 Required reading order:
 

@@ -1,6 +1,6 @@
 # RealEstate Frontend
 
-The public frontend for a real-estate platform focused on North Macedonia. Chapter 1 is complete: the repository now provides the localized, accessible operating foundation for the public product. Chapter 2 — Public Listings Catalog Vertical Slice is planned but not started; it will add the first backend-backed listings catalog through deliberately small implementation checkpoints. The current landing page does not render real listing data or implement authentication, saved searches, maps, dashboards, AI features, or agency workspaces.
+The public frontend for a real-estate platform focused on North Macedonia. Chapter 1 is complete: the repository now provides the localized, accessible operating foundation for the public product. Chapter 2 — Public Listings Catalog Vertical Slice has accepted 2A and 2B checkpoints; post-2B backend contract synchronization precedes 2C. The remaining checkpoints will add the first backend-backed listings catalog through deliberately small implementation checkpoints. The current landing page does not render real listing data or implement authentication, saved searches, maps, dashboards, AI features, or agency workspaces.
 
 ## Current foundation
 

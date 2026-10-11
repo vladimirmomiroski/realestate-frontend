@@ -103,6 +103,8 @@ export const mk = {
     propertyTypes: {
       Apartment: "Стан",
       House: "Куќа",
+      Commercial: "Деловен простор",
+      Land: "Земјиште",
     },
     statuses: {
       Draft: "Нацрт",

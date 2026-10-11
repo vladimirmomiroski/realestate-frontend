@@ -41,6 +41,24 @@ function readNumber(value: unknown, path: string) {
   return value;
 }
 
+function readCoordinate(
+  value: unknown,
+  path: string,
+  minimum: number,
+  maximum: number
+) {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < minimum ||
+    value > maximum
+  ) {
+    invalid(path);
+  }
+
+  return value;
+}
+
 function readInteger(
   value: unknown,
   path: string,
@@ -84,7 +102,27 @@ function readListingType(value: unknown, path: string) {
 }
 
 function readPropertyType(value: unknown, path: string) {
-  if (value !== "Apartment" && value !== "House") {
+  if (
+    value !== "Apartment" &&
+    value !== "House" &&
+    value !== "Commercial" &&
+    value !== "Land"
+  ) {
+    invalid(path);
+  }
+
+  return value;
+}
+
+function readLocationPrecision(value: unknown, path: string) {
+  if (
+    value !== "ExactAddress" &&
+    value !== "Street" &&
+    value !== "Neighborhood" &&
+    value !== "Municipality" &&
+    value !== "City" &&
+    value !== "Approximate"
+  ) {
     invalid(path);
   }
 
@@ -110,12 +148,15 @@ function mapListing(value: unknown, index: number): PublicListingCard {
     `${path}.pricePerSquareMeter`,
     readNumber
   );
-  const city = readOptional(listing.city, `${path}.city`, readString);
-  const municipality = readOptional(
-    listing.municipality,
-    `${path}.municipality`,
-    readString
-  );
+  const title = readString(listing.title, `${path}.title`);
+  const languageCode = readString(listing.languageCode, `${path}.languageCode`);
+  const city = readString(listing.city, `${path}.city`);
+  const municipality = readString(listing.municipality, `${path}.municipality`);
+  readString(listing.addressLine, `${path}.addressLine`);
+  readString(listing.description, `${path}.description`);
+  readCoordinate(listing.latitude, `${path}.latitude`, -90, 90);
+  readCoordinate(listing.longitude, `${path}.longitude`, -180, 180);
+  readLocationPrecision(listing.locationPrecision, `${path}.locationPrecision`);
   const neighborhood = readOptional(
     listing.neighborhood,
     `${path}.neighborhood`,
@@ -126,13 +167,6 @@ function mapListing(value: unknown, index: number): PublicListingCard {
     `${path}.primaryImageUrl`,
     readString
   );
-  const title = readOptional(listing.title, `${path}.title`, readString);
-  const languageCode = readOptional(
-    listing.languageCode,
-    `${path}.languageCode`,
-    readString
-  );
-
   return {
     id,
     listingType: readListingType(listing.listingType, `${path}.listingType`),
@@ -146,12 +180,12 @@ function mapListing(value: unknown, index: number): PublicListingCard {
       listing.areaSquareMeters,
       `${path}.areaSquareMeters`
     ),
-    ...(title === undefined ? {} : { title }),
-    ...(languageCode === undefined ? {} : { languageCode }),
+    title,
+    languageCode,
+    city,
+    municipality,
     ...(rooms === undefined ? {} : { rooms }),
     ...(pricePerSquareMeter === undefined ? {} : { pricePerSquareMeter }),
-    ...(city === undefined ? {} : { city }),
-    ...(municipality === undefined ? {} : { municipality }),
     ...(neighborhood === undefined ? {} : { neighborhood }),
     ...(primaryImageUrl === undefined ? {} : { primaryImageUrl }),
   };

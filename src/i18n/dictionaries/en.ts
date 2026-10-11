@@ -102,6 +102,8 @@ export const en = {
     propertyTypes: {
       Apartment: "Apartment",
       House: "House",
+      Commercial: "Commercial",
+      Land: "Land",
     },
     statuses: {
       Draft: "Draft",

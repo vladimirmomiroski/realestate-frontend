@@ -21,6 +21,10 @@ const validListing = {
   municipality: "Центар",
   neighborhood: "Дебар Маало",
   languageCode: "mk",
+  addressLine: "Example address",
+  latitude: 41.9981,
+  longitude: 21.4254,
+  locationPrecision: "Street",
   primaryImageUrl: "/uploads/listings/primary.webp",
   description: "An unconsumed backend field.",
   bathrooms: 2,
@@ -82,8 +86,6 @@ describe("parsePublicListingsResponse", () => {
       responseWith({
         rooms: null,
         pricePerSquareMeter: undefined,
-        city: null,
-        municipality: undefined,
         neighborhood: null,
         primaryImageUrl: undefined,
       })
@@ -98,64 +100,77 @@ describe("parsePublicListingsResponse", () => {
       areaSquareMeters: 82.5,
       title: "Стан во Дебар Маало",
       languageCode: "mk",
+      city: validListing.city,
+      municipality: validListing.municipality,
     });
   });
 
-  it("omits translated card content when no effective translation is returned", () => {
-    const card = parsePublicListingsResponse(
-      responseWith({
-        title: null,
-        languageCode: null,
-        city: null,
-        municipality: null,
-        neighborhood: null,
-      })
-    ).items[0];
+  it.each(["Apartment", "House", "Commercial", "Land"] as const)(
+    "accepts the %s property root",
+    (propertyType) => {
+      const card = parsePublicListingsResponse(responseWith({ propertyType }))
+        .items[0];
 
-    expect(card).not.toHaveProperty("title");
-    expect(card).not.toHaveProperty("languageCode");
-    expect(card).not.toHaveProperty("city");
-    expect(card).not.toHaveProperty("municipality");
-    expect(card).not.toHaveProperty("neighborhood");
+      expect(card?.propertyType).toBe(propertyType);
+    }
+  );
+
+  it.each([
+    "title",
+    "languageCode",
+    "city",
+    "municipality",
+    "addressLine",
+    "description",
+  ])("rejects missing, null, and blank required %s", (field) => {
+    for (const value of [undefined, null, "  "]) {
+      expect(() =>
+        parsePublicListingsResponse(responseWith({ [field]: value }))
+      ).toThrow(TypeError);
+    }
   });
 
-  it("does not impose correlations among optional translated fields", () => {
-    const withoutTitle = parsePublicListingsResponse(
-      responseWith({
-        title: null,
-        languageCode: "mk",
-        city: "Скопје",
-      })
-    ).items[0];
-    const withoutLanguageCode = parsePublicListingsResponse(
-      responseWith({
-        title: "Стан во Центар",
-        languageCode: null,
-      })
-    ).items[0];
-    const locationOnly = parsePublicListingsResponse(
-      responseWith({
-        title: null,
-        languageCode: null,
-        municipality: "Центар",
-        neighborhood: "Капиштец",
-      })
-    ).items[0];
+  it.each(["latitude", "longitude"])(
+    "rejects missing, null, and non-finite required %s",
+    (field) => {
+      for (const value of [undefined, null, "42", Number.NaN, Infinity]) {
+        expect(() =>
+          parsePublicListingsResponse(responseWith({ [field]: value }))
+        ).toThrow(TypeError);
+      }
+    }
+  );
 
-    expect(withoutTitle).toMatchObject({
-      languageCode: "mk",
-      city: "Скопје",
-    });
-    expect(withoutTitle).not.toHaveProperty("title");
-    expect(withoutLanguageCode).toMatchObject({ title: "Стан во Центар" });
-    expect(withoutLanguageCode).not.toHaveProperty("languageCode");
-    expect(locationOnly).toMatchObject({
-      municipality: "Центар",
-      neighborhood: "Капиштец",
-    });
-    expect(locationOnly).not.toHaveProperty("title");
-    expect(locationOnly).not.toHaveProperty("languageCode");
+  it.each([
+    ["latitude", -90.0001],
+    ["latitude", 90.0001],
+    ["longitude", -180.0001],
+    ["longitude", 180.0001],
+  ])("rejects out-of-range %s %s", (field, value) => {
+    expect(() =>
+      parsePublicListingsResponse(responseWith({ [field]: value }))
+    ).toThrow(`Invalid public listings response at items[0].${field}.`);
   });
+
+  it.each([
+    [0, 0],
+    [-90, -180],
+    [90, 180],
+    [-45, -75],
+  ])("accepts valid coordinates %s, %s", (latitude, longitude) => {
+    expect(
+      parsePublicListingsResponse(responseWith({ latitude, longitude })).items
+    ).toHaveLength(1);
+  });
+
+  it.each([undefined, null, "", "Unknown"])(
+    "rejects invalid required location precision %s",
+    (locationPrecision) => {
+      expect(() =>
+        parsePublicListingsResponse(responseWith({ locationPrecision }))
+      ).toThrow(TypeError);
+    }
+  );
 
   it("accepts a positive out-of-range page without requiring page <= totalPages", () => {
     expect(
@@ -206,17 +221,40 @@ describe("parsePublicListingsResponse", () => {
 
   it("preserves the returned languageCode without frontend fallback", () => {
     const card = parsePublicListingsResponse(
-      responseWith({ languageCode: "sq" })
+      responseWith({
+        languageCode: "sq",
+        title: "Backend fallback title",
+        city: "Backend fallback city",
+      })
     ).items[0];
 
-    expect(card?.languageCode).toBe("sq");
+    expect(card).toMatchObject({
+      languageCode: "sq",
+      title: "Backend fallback title",
+      city: "Backend fallback city",
+    });
+  });
+
+  it("accepts nullable root details without adding them to the card", () => {
+    const card = parsePublicListingsResponse(
+      responseWith({
+        propertyType: "Commercial",
+        apartmentDetails: null,
+        houseDetails: null,
+        commercialDetails: null,
+        landDetails: null,
+      })
+    ).items[0];
+
+    expect(card?.propertyType).toBe("Commercial");
+    expect(card).not.toHaveProperty("commercialDetails");
   });
 
   it.each([
     ["missing id", { id: undefined }],
     ["malformed id", { id: "not-a-uuid" }],
     ["unknown listing type", { listingType: "Exchange" }],
-    ["unknown property type", { propertyType: "Land" }],
+    ["unknown property type", { propertyType: "Warehouse" }],
     ["non-finite price", { price: Number.NaN }],
     ["negative price", { price: -1 }],
     ["non-finite area", { areaSquareMeters: Number.POSITIVE_INFINITY }],
