@@ -21,15 +21,23 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
-    env: {
-      API_BASE_URL: "http://localhost:5231",
-      MEDIA_BASE_URL: "http://localhost:5231",
-      SITE_URL: baseURL,
+  webServer: [
+    {
+      command: "node tests/fixtures/public-listings-api.mjs",
+      url: "http://localhost:5231/api/listings?lang=mk&pageSize=20",
+      reuseExistingServer: false,
+      timeout: 30_000,
     },
-    url: baseURL,
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
+    {
+      command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
+      env: {
+        API_BASE_URL: "http://localhost:5231",
+        MEDIA_BASE_URL: "http://localhost:5231",
+        SITE_URL: baseURL,
+      },
+      url: baseURL,
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+  ],
 });

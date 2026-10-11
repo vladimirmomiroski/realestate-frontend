@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 
+import { getPublicListings } from "@/features/listings/api/get-public-listings.server";
+import { PublicListingCardView } from "@/features/listings/components/public-listing-card";
 import { isSupportedLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/get-dictionary.server";
+
+export const dynamic = "force-dynamic";
 
 type ListingsPageProps = {
   params: Promise<{ locale: string }>;
@@ -15,6 +19,7 @@ export default async function ListingsPage({ params }: ListingsPageProps) {
   }
 
   const dictionary = await getDictionary(locale);
+  const listings = await getPublicListings({ locale });
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
@@ -28,6 +33,21 @@ export default async function ListingsPage({ params }: ListingsPageProps) {
         <p className="text-on-surface-muted mt-6 max-w-2xl text-lg leading-8">
           {dictionary.listings.subtitle}
         </p>
+      </section>
+      <section
+        aria-label={dictionary.listings.results}
+        className="mt-10 max-w-4xl"
+      >
+        <div className="space-y-5">
+          {listings.items.map((listing) => (
+            <PublicListingCardView
+              key={listing.id}
+              listing={listing}
+              locale={locale}
+              dictionary={dictionary}
+            />
+          ))}
+        </div>
       </section>
     </div>
   );
