@@ -95,6 +95,8 @@ export type Dictionary = {
     propertyTypes: {
       Apartment: string;
       House: string;
+      Commercial: string;
+      Land: string;
     };
     statuses: {
       Draft: string;

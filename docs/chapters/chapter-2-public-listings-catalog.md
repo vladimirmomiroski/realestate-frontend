@@ -2,13 +2,17 @@
 
 ## Status
 
-**Planned and ready for checkpoint review. Not started and not implemented.**
+**In progress. Checkpoints 2A and 2B accepted; post-2B backend contract synchronization in review before 2C.**
 
 Chapter 1 is complete. Chapter 2 must be implemented as the small checkpoints in
 section 12, in order, with one branch per checkpoint. The target of approximately
 100–200 lines applies to product/implementation code where practical. Tests,
 fixtures, and focused documentation may make a checkpoint diff larger, but are not
 a reason to combine product responsibilities.
+
+Frontend Git history contains the accepted 2A and 2B merges (`b1e030c` and
+`71378f5`). The finalized backend Chapter 15 handoff and generated OpenAPI replace
+the original 2B wire assumptions. Checkpoint 2C has not started.
 
 ## 1. Chapter objective
 
@@ -35,7 +39,7 @@ of the application.
 - Shareable URL state for:
   - `q` keyword/location search;
   - `listingType` (`Sale` or `Rent`);
-  - `propertyType` (`Apartment` or `House`);
+  - `propertyType` (`Apartment` or `House` in the compact Chapter 2 filter);
   - one-based `page`.
 - A progressively enhanced GET search form using the localized listings path.
 - Search submission that resets pagination because the form does not carry `page`.
@@ -116,7 +120,7 @@ needed for this slice.
 | Property           | Confirmed contract                                                                |
 | ------------------ | --------------------------------------------------------------------------------- |
 | Method/path        | Anonymous `GET /api/listings`                                                     |
-| Success            | `200` with `ListingResponsePagedResponse`                                         |
+| Success            | `200` with `PublicListingResponsePagedResponse`                                   |
 | Validation failure | `400 application/problem+json` with validation errors                             |
 | Unexpected failure | `500 application/problem+json`                                                    |
 | Correlation        | Optional response `X-Request-ID`, also represented as `traceId` in ProblemDetails |
@@ -135,40 +139,48 @@ inspected narrowly to confirm behavior that OpenAPI cannot fully express.
 The backend currently supports all of the following. Documenting a field here does
 not put it in the Chapter 2 UI.
 
-| Query key                                            | Type/current behavior                                                                                                                  | Chapter 2 use                                  |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `lang`                                               | String; normalized to lower case; effective translation preference is requested language, then `mk`, then deterministic language order | Always route locale; never read from URL query |
-| `q`                                                  | Trimmed string, 2–100 characters; case-insensitive literal contains search over effective title, city, municipality, and neighborhood  | Exposed                                        |
-| `listingType`                                        | `Sale` or `Rent`                                                                                                                       | Exposed                                        |
-| `propertyType`                                       | `Apartment` or `House`                                                                                                                 | Exposed                                        |
-| `agencyId`                                           | UUID                                                                                                                                   | Deferred                                       |
-| `heatingType`                                        | `Unknown`, `None`, `Electric`, `Central`, `Gas`, `Wood`, `HeatPump`, or `Other`                                                        | Deferred                                       |
-| `furnishingStatus`                                   | `Unknown`, `Unfurnished`, `SemiFurnished`, or `Furnished`                                                                              | Deferred                                       |
-| `condition`                                          | `Unknown`, `New`, `Excellent`, `Good`, `NeedsRenovation`                                                                               | Deferred                                       |
-| `hasBasement`                                        | Boolean                                                                                                                                | Deferred                                       |
-| `hasElevator`                                        | Boolean; matches apartments with apartment details                                                                                     | Deferred                                       |
-| `apartmentType`                                      | `Unknown`, `Studio`, `Standard`, `Penthouse`, `Duplex`, `Loft`, `Maisonette`, or `Other`                                               | Deferred                                       |
-| `houseType`                                          | `Unknown`, `Detached`, `SemiDetached`, `Terraced`, `Townhouse`, `Villa`, `Cottage`, or `Other`                                         | Deferred                                       |
-| `minYardAreaSquareMeters`, `maxYardAreaSquareMeters` | Inclusive, non-negative range; minimum cannot exceed maximum                                                                           | Deferred                                       |
-| `minPrice`, `maxPrice`                               | Inclusive values greater than zero; minimum cannot exceed maximum; requires `currency`                                                 | Deferred                                       |
-| `currency`                                           | Exactly three ASCII letters after trim/uppercase; required for price filters and price sorting                                         | Deferred                                       |
-| `minAreaSquareMeters`, `maxAreaSquareMeters`         | Inclusive values greater than zero; minimum cannot exceed maximum                                                                      | Deferred                                       |
-| `minRooms`, `maxRooms`                               | Inclusive, non-negative range; listings with null rooms do not match                                                                   | Deferred                                       |
-| `city`, `municipality`, `neighborhood`               | Trimmed, at most 100 characters; case-insensitive exact match against the effective translation                                        | Deferred as structured controls                |
-| `sort`                                               | `newest`, `priceAsc`, or `priceDesc`, parsed case-insensitively; price order requires `currency`                                       | Omitted so backend default `newest` applies    |
-| `page`                                               | Values below 1 normalize to 1; default 1                                                                                               | Exposed after frontend validation              |
-| `pageSize`                                           | Values below 1 normalize to 20; above 100 cap at 100; default 20                                                                       | Always fixed to 20 by frontend operation       |
+| Query key                                            | Type/current behavior                                                                                                                  | Chapter 2 use                                    |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `lang`                                               | String; normalized to lower case; effective translation preference is requested language, then `mk`, then deterministic language order | Always route locale; never read from URL query   |
+| `q`                                                  | Trimmed string, 2–100 characters; case-insensitive literal contains search over effective title, city, municipality, and neighborhood  | Exposed                                          |
+| `listingType`                                        | `Sale` or `Rent`                                                                                                                       | Exposed                                          |
+| `propertyType`                                       | `Apartment`, `House`, `Commercial`, or `Land`                                                                                          | Exposed only as `Apartment`/`House` in Chapter 2 |
+| `agencyId`                                           | UUID                                                                                                                                   | Deferred                                         |
+| `heatingType`                                        | `Unknown`, `None`, `Electric`, `Central`, `Gas`, `Wood`, `HeatPump`, or `Other`                                                        | Deferred                                         |
+| `furnishingStatus`                                   | `Unknown`, `Unfurnished`, `SemiFurnished`, or `Furnished`                                                                              | Deferred                                         |
+| `condition`                                          | `Unknown`, `New`, `Renovated`, `Good`, `NeedsRenovation`                                                                               | Deferred                                         |
+| `hasBasement`                                        | Boolean                                                                                                                                | Deferred                                         |
+| `hasElevator`                                        | Boolean; matches apartments with apartment details                                                                                     | Deferred                                         |
+| `apartmentType`                                      | `Unknown`, `Studio`, `Standard`, `Penthouse`, `Duplex`, `Loft`, `Maisonette`, or `Other`                                               | Deferred                                         |
+| `houseType`                                          | `Unknown`, `Detached`, `SemiDetached`, `Terraced`, `Townhouse`, `Villa`, `Cottage`, or `Other`                                         | Deferred                                         |
+| `commercialType`                                     | `Unknown`, `Office`, `Shop`, or `Other`                                                                                                | Deferred                                         |
+| `landType`                                           | `Unknown`, `BuildingPlot`, `AgriculturalLand`, or `Other`                                                                              | Deferred                                         |
+| `minYardAreaSquareMeters`, `maxYardAreaSquareMeters` | Inclusive, non-negative range; minimum cannot exceed maximum                                                                           | Deferred                                         |
+| `minPrice`, `maxPrice`                               | Inclusive values greater than zero; minimum cannot exceed maximum; requires `currency`                                                 | Deferred                                         |
+| `currency`                                           | Exactly three ASCII letters after trim/uppercase; required for price filters and price sorting                                         | Deferred                                         |
+| `minAreaSquareMeters`, `maxAreaSquareMeters`         | Inclusive values greater than zero; minimum cannot exceed maximum                                                                      | Deferred                                         |
+| `minRooms`, `maxRooms`                               | Inclusive, non-negative range; listings with null rooms do not match                                                                   | Deferred                                         |
+| `city`, `municipality`, `neighborhood`               | Trimmed, at most 100 characters; case-insensitive exact match against the effective translation                                        | Deferred as structured controls                  |
+| `sort`                                               | `newest`, `priceAsc`, or `priceDesc`, parsed case-insensitively; price order requires `currency`                                       | Omitted so backend default `newest` applies      |
+| `page`                                               | Values below 1 normalize to 1; default 1                                                                                               | Exposed after frontend validation                |
+| `pageSize`                                           | Values below 1 normalize to 20; above 100 cap at 100; default 20                                                                       | Always fixed to 20 by frontend operation         |
 
 `q`, city, municipality, and neighborhood operate on the single effective
 translation chosen for the requested language. The backend escapes `%`, `_`, and
 `\`, so they are literal search characters rather than wildcard input.
+
+The backend supports four root property types and both subtype families. The
+Chapter 2 property-type **filter** intentionally offers only Apartment and House
+as a compact product-scope choice; this is not a backend limitation. An unfiltered
+catalog can return all four roots, so card labels and rendering at 2D must handle
+Commercial and Land truthfully. Subtype controls remain deferred.
 
 ### 5.3 Response envelope
 
 The successful JSON shape is:
 
 ```text
-items: ListingResponse[]
+items: PublicListingResponse[]
 page: normalized one-based page
 pageSize: normalized page size
 totalCount: total matching Active listings
@@ -184,10 +196,14 @@ and `totalPages`, not a boolean alone, to choose the state presentation.
 
 ### 5.4 Listing fields relevant to the catalog
 
-`ListingResponse` contains identity, listing/property/status enums, price,
+`PublicListingResponse` contains identity, listing/property/status enums, price,
 currency, area, computed price per square metre, optional room/bathroom and other
 property facts, localized title/description/address/location, `languageCode`,
-`primaryImageUrl`, typed apartment/house details, and the ordered image collection.
+`primaryImageUrl`, nullable root-specific details, and the ordered image collection.
+Its `languageCode`, `title`, `city`, `municipality`, `addressLine`, `description`,
+`latitude`, `longitude`, and `locationPrecision` are required and non-null.
+`neighborhood`, primary media, and root-specific details remain nullable or optional.
+Private `ListingResponse` and Draft/management DTOs retain their own nullable fields.
 
 Chapter 2 maps only the card subset into a handwritten view model. It does not copy
 the complete DTO. Generated properties are frequently optional because of the
@@ -474,14 +490,30 @@ has its focused success condition reviewed.
   - `src/features/listings/api/public-listings-contract.ts`
   - adjacent adapter tests and minimal wire fixtures
 - **Approximate implementation size:** 150–200 lines.
-- **Tests required:** Valid page/card mapping; optional title/location/media; fallback
-  language; non-Active item rejection; missing/invalid identity/enums/numbers/page
-  metadata rejection; no complete handwritten backend DTO.
+- **Original 2B tests:** Valid page/card mapping; then-optional translated content and
+  media; fallback language; non-Active item rejection; malformed identity/enums/
+  numbers/page metadata rejection; no complete handwritten backend DTO. The
+  post-2B sync below replaces the obsolete optional public-content assumptions.
 - **Explicit exclusions:** Fetching, URL state, formatting UI, components, and error
   presentation.
 - **Completion condition:** The adapter accepts a representative real contract page,
   produces only the card/page model, and fails malformed consumed fields.
 - **Dependency:** 2A.
+
+### Post-2B backend contract synchronization — prerequisite to 2C
+
+- **Status:** Implemented for audit on the dedicated contract-sync branch; acceptance
+  and commit remain separate owner actions.
+- **Source:** Final Chapter 15 Development Swagger and definitive backend/frontend
+  handoff. Regenerate `openapi.d.ts`; update the narrow card model, runtime adapter,
+  focused tests, and current-state documentation.
+- **Contract correction:** Public list items use `PublicListingResponse` with all
+  four property roots and nine required translation/location fields. Validate those
+  fields before mapping; retain nullable neighborhood, media, and root details.
+  Private Draft/management response nullability remains distinct.
+- **Exclusions:** No server retrieval, catalog rendering, filters, or 2C work.
+- **Completion condition:** Generated types match accepted Swagger, focused and
+  normal frontend checks pass, and the bounded diff is independently accepted.
 
 ### Checkpoint 2C — Server-side listings retrieval
 
@@ -499,7 +531,7 @@ has its focused success condition reviewed.
   changes, and browser fetches.
 - **Completion condition:** A unit test proves one typed server call maps an API page
   without exposing the API origin or contacting a live backend.
-- **Dependency:** 2B.
+- **Dependency:** Accepted 2B and the post-2B contract synchronization audit/commit.
 
 ### Checkpoint 2D — First backend-backed listing cards
 
@@ -822,9 +854,10 @@ Chapter 2 is complete only when all of the following are true:
   OpenAPI, backend controller/query/validator/repository code, and backend context
   agree on the broader contract documented here; implementation must not use the
   stale short list as the wire authority.
-- Most `ListingResponse` and page metadata members are optional in generated
-  TypeScript even though the C# success DTO supplies core values. The narrow runtime
-  adapter must fail malformed consumed fields instead of using broad assertions.
+- Many public response identity/price/area and page metadata members remain optional
+  in generated TypeScript despite runtime success values. The nine strict public
+  translation/location fields are required and non-null. The narrow runtime adapter
+  must fail malformed consumed fields instead of using broad assertions.
 - There is no Development listing seed. The minimum deterministic happy-path browser
   fixture must exist by 2D for card/design review, then be expanded and reused in 2P;
   the real-backend smoke must remain valid with zero items.

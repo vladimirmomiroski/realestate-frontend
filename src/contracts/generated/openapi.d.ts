@@ -380,7 +380,7 @@ export interface paths {
       cookie?: never;
     };
     get: operations["GetListingById"];
-    put?: never;
+    put: operations["Listings_UpdateListing"];
     post?: never;
     delete?: never;
     options?: never;
@@ -430,6 +430,54 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations["Listings_UploadImage"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/listings/{id}/location": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["Listings_ConfirmLocation"];
+    post?: never;
+    delete: operations["Listings_ClearLocation"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/listings/{id}/location/candidates": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["Listings_SearchLocationCandidates"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/listings/{id}/management": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["GetListingManagement"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -716,9 +764,12 @@ export interface components {
         | "authorization.forbidden"
         | "conflict.agency_slug_already_exists"
         | "conflict.email_already_exists"
+        | "conflict.listing_not_ready"
         | "conflict.resource_capacity"
         | "conflict.resource_set_changed"
         | "conflict.resource_state"
+        | "dependency.geocoding_unavailable"
+        | "rate_limit.geocoding_exceeded"
         | "request.media_type_not_supported"
         | "request.method_not_allowed"
         | "resource.not_found"
@@ -753,9 +804,12 @@ export interface components {
         | "authorization.forbidden"
         | "conflict.agency_slug_already_exists"
         | "conflict.email_already_exists"
+        | "conflict.listing_not_ready"
         | "conflict.resource_capacity"
         | "conflict.resource_set_changed"
         | "conflict.resource_state"
+        | "dependency.geocoding_unavailable"
+        | "rate_limit.geocoding_exceeded"
         | "request.media_type_not_supported"
         | "request.method_not_allowed"
         | "resource.not_found"
@@ -796,6 +850,12 @@ export interface components {
     ChangeAgencyMemberRoleRequest: {
       role?: components["schemas"]["AgencyMemberRole"];
     };
+    /** @enum {string} */
+    CommercialType: "Unknown" | "Office" | "Shop" | "Other";
+    ConfirmListingLocationRequest: {
+      /** @description Opaque short-lived location-confirmation token. Coordinates and provider provenance are not accepted. */
+      confirmationToken: string;
+    };
     CreateAgencyInvitationRequest: {
       email?: string | null;
       role?: components["schemas"]["AgencyMemberRole"];
@@ -819,6 +879,10 @@ export interface components {
       /** Format: int32 */
       totalFloors?: number | null;
     };
+    CreateListingCommercialDetailsRequest: {
+      /** @description Optional; omission defaults commercialType to Unknown. */
+      commercialType?: components["schemas"]["CommercialType"];
+    };
     CreateListingHouseDetailsRequest: {
       houseType?: components["schemas"]["HouseType"];
       /** Format: int32 */
@@ -826,52 +890,75 @@ export interface components {
       /** Format: double */
       yardAreaSquareMeters?: number | null;
     };
+    CreateListingLandDetailsRequest: {
+      /** @description Optional; omission defaults landType to Unknown. */
+      landType?: components["schemas"]["LandType"];
+    };
     CreateListingRequest: {
       /** Format: uuid */
       agencyId?: string | null;
-      apartmentDetails?: components["schemas"]["CreateListingApartmentDetailsRequest"];
+      /** @description Required when propertyType is Apartment and forbidden when propertyType is House, Commercial, and Land. Create runtime validation requires exactly the detail object matching propertyType and forbids the other three detail objects. */
+      apartmentDetails?:
+        | components["schemas"]["CreateListingApartmentDetailsRequest"]
+        | (never | null);
       /** Format: double */
-      areaSquareMeters?: number;
+      areaSquareMeters: number;
       /** Format: int32 */
       balconyCount?: number | null;
       /** Format: double */
       bathrooms?: number | null;
+      /** @description Required when propertyType is Commercial and forbidden when propertyType is Apartment, House, and Land. Create runtime validation requires exactly the detail object matching propertyType and forbids the other three detail objects. */
+      commercialDetails?:
+        | components["schemas"]["CreateListingCommercialDetailsRequest"]
+        | (never | null);
       condition?: components["schemas"]["PropertyCondition"];
-      currency?: string | null;
+      /**
+       * @description Optional; omission defaults to EUR. Explicit null or an invalid value is rejected.
+       * @default EUR
+       */
+      currency: string;
       furnishingStatus?: components["schemas"]["FurnishingStatus"];
       hasBasement?: boolean | null;
       heatingType?: components["schemas"]["HeatingType"];
-      houseDetails?: components["schemas"]["CreateListingHouseDetailsRequest"];
+      /** @description Required when propertyType is House and forbidden when propertyType is Apartment, Commercial, and Land. Create runtime validation requires exactly the detail object matching propertyType and forbids the other three detail objects. */
+      houseDetails?:
+        | components["schemas"]["CreateListingHouseDetailsRequest"]
+        | (never | null);
       isExchangePossible?: boolean | null;
-      /** Format: double */
-      latitude?: number | null;
-      listingType?: components["schemas"]["ListingType"];
-      /** Format: double */
-      longitude?: number | null;
+      /** @description Required when propertyType is Land and forbidden when propertyType is Apartment, House, and Commercial. Create runtime validation requires exactly the detail object matching propertyType and forbids the other three detail objects. */
+      landDetails?:
+        | components["schemas"]["CreateListingLandDetailsRequest"]
+        | (never | null);
+      listingType: components["schemas"]["ListingType"];
       orientation?: components["schemas"]["Orientation"];
       /** Format: int32 */
       parkingSpaces?: number | null;
       /** Format: double */
-      price?: number;
-      propertyType?: components["schemas"]["PropertyType"];
+      price: number;
+      propertyType: components["schemas"]["PropertyType"];
       /** Format: double */
       rooms?: number | null;
-      translations?:
-        | components["schemas"]["CreateListingTranslationRequest"][]
-        | null;
+      translations: components["schemas"]["CreateListingTranslationRequest"][];
       /** Format: int32 */
       yearBuilt?: number | null;
       /** Format: int32 */
       yearRenovated?: number | null;
     };
     CreateListingTranslationRequest: {
+      /** @description Optional; boundary whitespace normalizes to null; maximum 300 characters after normalization. */
       addressLine?: string | null;
+      /** @description Optional; boundary whitespace normalizes to null; maximum 100 characters after normalization. */
       city?: string | null;
+      /** @description Optional; boundary whitespace normalizes to null; maximum 3000 characters after normalization. */
       description?: string | null;
-      languageCode?: string | null;
+      /** @description Boundary-trimmed and lowercased before validation. Canonical value must match ^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$ and contain at most 10 characters. */
+      languageCode: string;
+      /** @description Optional; boundary whitespace normalizes to null; maximum 100 characters after normalization. */
       municipality?: string | null;
+      /** @description Optional; boundary whitespace normalizes to null; maximum 100 characters after normalization. */
       neighborhood?: string | null;
-      title?: string | null;
+      /** @description Required, boundary-trimmed, nonblank; maximum 200 characters after normalization. */
+      title: string;
     };
     /** @enum {string} */
     FurnishingStatus: "Unknown" | "Unfurnished" | "SemiFurnished" | "Furnished";
@@ -895,6 +982,8 @@ export interface components {
       | "Villa"
       | "Cottage"
       | "Other";
+    /** @enum {string} */
+    LandType: "Unknown" | "BuildingPlot" | "AgriculturalLand" | "Other";
     ListingApartmentDetailsResponse: {
       apartmentType?: components["schemas"]["ApartmentType"];
       /** Format: int32 */
@@ -902,6 +991,87 @@ export interface components {
       hasElevator?: boolean | null;
       /** Format: int32 */
       totalFloors?: number | null;
+    };
+    ListingAuthoringResponse: {
+      /** Format: uuid */
+      agencyId?: string | null;
+      /** @description Nullable stored Apartment detail payload; the response reflects the loaded aggregate state. */
+      apartmentDetails?:
+        | components["schemas"]["ListingApartmentDetailsResponse"]
+        | (never | null);
+      /** Format: double */
+      areaSquareMeters?: number;
+      /** Format: int32 */
+      balconyCount?: number | null;
+      /** Format: double */
+      bathrooms?: number | null;
+      /** @description Nullable stored Commercial detail payload; the response reflects the loaded aggregate state. */
+      commercialDetails?:
+        | components["schemas"]["ListingCommercialDetailsResponse"]
+        | (never | null);
+      condition?: components["schemas"]["PropertyCondition"];
+      /** Format: date-time */
+      createdAtUtc?: string;
+      /** Format: uuid */
+      createdByUserId?: string | null;
+      currency: string | null;
+      furnishingStatus?: components["schemas"]["FurnishingStatus"];
+      geocodedDisplayName?: string | null;
+      hasBasement?: boolean | null;
+      heatingType?: components["schemas"]["HeatingType"];
+      /** @description Nullable stored House detail payload; the response reflects the loaded aggregate state. */
+      houseDetails?:
+        | components["schemas"]["ListingHouseDetailsResponse"]
+        | (never | null);
+      /** Format: uuid */
+      id?: string;
+      images: components["schemas"]["ListingImageResponse"][] | null;
+      isExchangePossible?: boolean | null;
+      /** @description Nullable stored Land detail payload; the response reflects the loaded aggregate state. */
+      landDetails?:
+        | components["schemas"]["ListingLandDetailsResponse"]
+        | (never | null);
+      /** Format: double */
+      latitude?: number | null;
+      listingType?: components["schemas"]["ListingType"];
+      /** Format: date-time */
+      locationConfirmedAtUtc?: string | null;
+      /** @description Nullable provider-neutral precision of a confirmed location snapshot. */
+      locationPrecision?:
+        | components["schemas"]["LocationPrecision"]
+        | (never | null);
+      /** Format: double */
+      longitude?: number | null;
+      /** Format: date-time */
+      modifiedAtUtc?: string | null;
+      orientation?: components["schemas"]["Orientation"];
+      /** Format: int32 */
+      parkingSpaces?: number | null;
+      /** Format: double */
+      price?: number;
+      propertyType?: components["schemas"]["PropertyType"];
+      /** Format: double */
+      rooms?: number | null;
+      status?: components["schemas"]["ListingStatus"];
+      translations: components["schemas"]["ListingAuthoringTranslationResponse"][];
+      /** Format: int32 */
+      yearBuilt?: number | null;
+      /** Format: int32 */
+      yearRenovated?: number | null;
+    };
+    ListingAuthoringTranslationResponse: {
+      addressLine?: string | null;
+      city?: string | null;
+      description?: string | null;
+      /** Format: uuid */
+      id?: string;
+      languageCode: string;
+      municipality?: string | null;
+      neighborhood?: string | null;
+      title: string;
+    };
+    ListingCommercialDetailsResponse: {
+      commercialType: components["schemas"]["CommercialType"];
     };
     ListingHouseDetailsResponse: {
       houseType?: components["schemas"]["HouseType"];
@@ -922,11 +1092,40 @@ export interface components {
       /** @description API-relative media path, for example /uploads/... . */
       url?: string | null;
     };
+    ListingLandDetailsResponse: {
+      landType: components["schemas"]["LandType"];
+    };
+    ListingLocationCandidateResponse: {
+      /** @description Opaque short-lived token required to confirm this candidate. */
+      confirmationToken: string;
+      label: string;
+      precision: components["schemas"]["LocationPrecision"];
+      /** Format: double */
+      previewLatitude: number;
+      /** Format: double */
+      previewLongitude: number;
+    };
+    ListingLocationStateResponse: {
+      geocodedDisplayName?: string | null;
+      /** Format: double */
+      latitude?: number | null;
+      /** Format: date-time */
+      locationConfirmedAtUtc?: string | null;
+      /** @description Nullable provider-neutral precision of a confirmed location snapshot. */
+      locationPrecision?:
+        | components["schemas"]["LocationPrecision"]
+        | (never | null);
+      /** Format: double */
+      longitude?: number | null;
+    };
     ListingResponse: {
       addressLine?: string | null;
       /** Format: uuid */
       agencyId?: string | null;
-      apartmentDetails?: components["schemas"]["ListingApartmentDetailsResponse"];
+      /** @description Nullable stored Apartment detail payload; the response reflects the loaded aggregate state. */
+      apartmentDetails?:
+        | components["schemas"]["ListingApartmentDetailsResponse"]
+        | (never | null);
       /** Format: double */
       areaSquareMeters?: number;
       /** Format: int32 */
@@ -934,21 +1133,39 @@ export interface components {
       /** Format: double */
       bathrooms?: number | null;
       city?: string | null;
+      /** @description Nullable stored Commercial detail payload; the response reflects the loaded aggregate state. */
+      commercialDetails?:
+        | components["schemas"]["ListingCommercialDetailsResponse"]
+        | (never | null);
       condition?: components["schemas"]["PropertyCondition"];
       currency?: string | null;
       description?: string | null;
       furnishingStatus?: components["schemas"]["FurnishingStatus"];
+      geocodedDisplayName?: string | null;
       hasBasement?: boolean | null;
       heatingType?: components["schemas"]["HeatingType"];
-      houseDetails?: components["schemas"]["ListingHouseDetailsResponse"];
+      /** @description Nullable stored House detail payload; the response reflects the loaded aggregate state. */
+      houseDetails?:
+        | components["schemas"]["ListingHouseDetailsResponse"]
+        | (never | null);
       /** Format: uuid */
       id?: string;
       images?: components["schemas"]["ListingImageResponse"][] | null;
       isExchangePossible?: boolean | null;
+      /** @description Nullable stored Land detail payload; the response reflects the loaded aggregate state. */
+      landDetails?:
+        | components["schemas"]["ListingLandDetailsResponse"]
+        | (never | null);
       languageCode?: string | null;
       /** Format: double */
       latitude?: number | null;
       listingType?: components["schemas"]["ListingType"];
+      /** Format: date-time */
+      locationConfirmedAtUtc?: string | null;
+      /** @description Nullable provider-neutral precision of a confirmed location snapshot. */
+      locationPrecision?:
+        | components["schemas"]["LocationPrecision"]
+        | (never | null);
       /** Format: double */
       longitude?: number | null;
       municipality?: string | null;
@@ -1010,6 +1227,14 @@ export interface components {
       | "Archived";
     /** @enum {string} */
     ListingType: "Sale" | "Rent";
+    /** @enum {string} */
+    LocationPrecision:
+      | "ExactAddress"
+      | "Street"
+      | "Neighborhood"
+      | "Municipality"
+      | "City"
+      | "Approximate";
     LoginRequest: {
       email?: string | null;
       password?: string | null;
@@ -1060,7 +1285,100 @@ export interface components {
       | "Good"
       | "NeedsRenovation";
     /** @enum {string} */
-    PropertyType: "Apartment" | "House";
+    PropertyType: "Apartment" | "House" | "Commercial" | "Land";
+    PublicListingResponse: {
+      addressLine: string;
+      /** Format: uuid */
+      agencyId?: string | null;
+      /** @description Nullable stored Apartment detail payload; the response reflects the loaded aggregate state. */
+      apartmentDetails?:
+        | components["schemas"]["ListingApartmentDetailsResponse"]
+        | (never | null);
+      /** Format: double */
+      areaSquareMeters?: number;
+      /** Format: int32 */
+      balconyCount?: number | null;
+      /** Format: double */
+      bathrooms?: number | null;
+      city: string;
+      /** @description Nullable stored Commercial detail payload; the response reflects the loaded aggregate state. */
+      commercialDetails?:
+        | components["schemas"]["ListingCommercialDetailsResponse"]
+        | (never | null);
+      condition?: components["schemas"]["PropertyCondition"];
+      currency?: string | null;
+      description: string;
+      furnishingStatus?: components["schemas"]["FurnishingStatus"];
+      hasBasement?: boolean | null;
+      heatingType?: components["schemas"]["HeatingType"];
+      /** @description Nullable stored House detail payload; the response reflects the loaded aggregate state. */
+      houseDetails?:
+        | components["schemas"]["ListingHouseDetailsResponse"]
+        | (never | null);
+      /** Format: uuid */
+      id?: string;
+      images?: components["schemas"]["ListingImageResponse"][] | null;
+      isExchangePossible?: boolean | null;
+      /** @description Nullable stored Land detail payload; the response reflects the loaded aggregate state. */
+      landDetails?:
+        | components["schemas"]["ListingLandDetailsResponse"]
+        | (never | null);
+      languageCode: string;
+      /** Format: double */
+      latitude: number;
+      listingType?: components["schemas"]["ListingType"];
+      locationPrecision: components["schemas"]["LocationPrecision"];
+      /** Format: double */
+      longitude: number;
+      municipality: string;
+      neighborhood?: string | null;
+      orientation?: components["schemas"]["Orientation"];
+      /** Format: int32 */
+      parkingSpaces?: number | null;
+      /** Format: double */
+      price?: number;
+      /** Format: double */
+      pricePerSquareMeter?: number;
+      /** @description API-relative media path, for example /uploads/... . */
+      primaryImageUrl?: string | null;
+      propertyType?: components["schemas"]["PropertyType"];
+      /** Format: double */
+      rooms?: number | null;
+      status?: components["schemas"]["ListingStatus"];
+      title: string;
+      /** Format: int32 */
+      yearBuilt?: number | null;
+      /** Format: int32 */
+      yearRenovated?: number | null;
+    };
+    PublicListingResponsePagedResponse: {
+      /** @description True when page is less than totalPages. */
+      readonly hasNextPage?: boolean;
+      /** @description True when page is greater than 1. */
+      readonly hasPreviousPage?: boolean;
+      /** @description Items for the requested page. */
+      items: components["schemas"]["PublicListingResponse"][];
+      /**
+       * Format: int32
+       * @description Normalized one-based page number.
+       */
+      page?: number;
+      /**
+       * Format: int32
+       * @description Normalized page size, capped at 100.
+       */
+      pageSize?: number;
+      /**
+       * Format: int32
+       * @description Total matching item count.
+       */
+      totalCount?: number;
+      /**
+       * Format: int32
+       * @description Total page count; zero when there are no matches.
+       */
+      readonly totalPages?: number;
+    };
     RegisterRequest: {
       email?: string | null;
       firstName?: string | null;
@@ -1070,6 +1388,9 @@ export interface components {
     };
     ReorderListingImagesRequest: {
       imageIds?: string[] | null;
+    };
+    SearchLocationCandidatesRequest: {
+      languageCode?: string | null;
     };
     "StringString<>f__AnonymousType1": {
       app?: string | null;
@@ -1084,6 +1405,118 @@ export interface components {
       name?: string | null;
       phoneNumber?: string | null;
       websiteUrl?: string | null;
+    };
+    UpdateListingApartmentDetailsRequest: {
+      /** @description Optional; omission resets the stored value to Unknown. */
+      apartmentType?: components["schemas"]["ApartmentType"];
+      /** Format: int32 */
+      floor?: number | null;
+      hasElevator?: boolean | null;
+      /** Format: int32 */
+      totalFloors?: number | null;
+    };
+    UpdateListingCommercialDetailsRequest: {
+      /** @description Optional; omission resets the stored commercialType to Unknown during full replacement. */
+      commercialType?: components["schemas"]["CommercialType"];
+    };
+    UpdateListingHouseDetailsRequest: {
+      /** @description Optional; omission resets the stored value to Unknown. */
+      houseType?: components["schemas"]["HouseType"];
+      /** Format: int32 */
+      numberOfFloors?: number | null;
+      /** Format: double */
+      yardAreaSquareMeters?: number | null;
+    };
+    UpdateListingLandDetailsRequest: {
+      /** @description Optional; omission resets the stored landType to Unknown during full replacement. */
+      landType?: components["schemas"]["LandType"];
+    };
+    /** @description Full replacement of the current editable Draft listing content. For optional nullable members, omission and explicit null both clear the stored value. */
+    UpdateListingRequest: {
+      /** @description Required when propertyType is Apartment and forbidden when propertyType is House, Commercial, and Land. Full-replacement runtime validation requires exactly the detail object matching propertyType and forbids the other three detail objects; incompatible stored details are removed. */
+      apartmentDetails?:
+        | components["schemas"]["UpdateListingApartmentDetailsRequest"]
+        | (never | null);
+      /** Format: double */
+      areaSquareMeters: number;
+      /**
+       * Format: int32
+       * @description Optional and nullable; omission or explicit null clears the stored value.
+       */
+      balconyCount?: number | null;
+      /**
+       * Format: double
+       * @description Optional and nullable; omission or explicit null clears the stored value.
+       */
+      bathrooms?: number | null;
+      /** @description Required when propertyType is Commercial and forbidden when propertyType is Apartment, House, and Land. Full-replacement runtime validation requires exactly the detail object matching propertyType and forbids the other three detail objects; incompatible stored details are removed. */
+      commercialDetails?:
+        | components["schemas"]["UpdateListingCommercialDetailsRequest"]
+        | (never | null);
+      /** @description Optional; omission resets the stored value to Unknown. */
+      condition?: components["schemas"]["PropertyCondition"];
+      currency: string;
+      /** @description Optional; omission resets the stored value to Unknown. */
+      furnishingStatus?: components["schemas"]["FurnishingStatus"];
+      /** @description Optional and nullable; omission or explicit null clears the stored value. */
+      hasBasement?: boolean | null;
+      /** @description Optional; omission resets the stored value to Unknown. */
+      heatingType?: components["schemas"]["HeatingType"];
+      /** @description Required when propertyType is House and forbidden when propertyType is Apartment, Commercial, and Land. Full-replacement runtime validation requires exactly the detail object matching propertyType and forbids the other three detail objects; incompatible stored details are removed. */
+      houseDetails?:
+        | components["schemas"]["UpdateListingHouseDetailsRequest"]
+        | (never | null);
+      /** @description Optional and nullable; omission or explicit null clears the stored value. */
+      isExchangePossible?: boolean | null;
+      /** @description Required when propertyType is Land and forbidden when propertyType is Apartment, House, and Commercial. Full-replacement runtime validation requires exactly the detail object matching propertyType and forbids the other three detail objects; incompatible stored details are removed. */
+      landDetails?:
+        | components["schemas"]["UpdateListingLandDetailsRequest"]
+        | (never | null);
+      listingType: components["schemas"]["ListingType"];
+      /** @description Optional; omission resets the stored value to Unknown. */
+      orientation?: components["schemas"]["Orientation"];
+      /**
+       * Format: int32
+       * @description Optional and nullable; omission or explicit null clears the stored value.
+       */
+      parkingSpaces?: number | null;
+      /** Format: double */
+      price: number;
+      propertyType: components["schemas"]["PropertyType"];
+      /**
+       * Format: double
+       * @description Optional and nullable; omission or explicit null clears the stored value.
+       */
+      rooms?: number | null;
+      /** @description Complete authoritative translation set. Omitted stored languages are deleted; retained canonical languages preserve their server-owned translation IDs. */
+      translations: components["schemas"]["UpdateListingTranslationRequest"][];
+      /**
+       * Format: int32
+       * @description Optional and nullable; omission or explicit null clears the stored value.
+       */
+      yearBuilt?: number | null;
+      /**
+       * Format: int32
+       * @description Optional and nullable; omission or explicit null clears the stored value.
+       */
+      yearRenovated?: number | null;
+    };
+    /** @description One member of the complete authoritative replacement translation set. The client does not submit translation IDs. */
+    UpdateListingTranslationRequest: {
+      /** @description Optional and nullable; omission, explicit null, or boundary-whitespace-only input clears the stored value. */
+      addressLine?: string | null;
+      /** @description Optional and nullable; omission, explicit null, or boundary-whitespace-only input clears the stored value. */
+      city?: string | null;
+      /** @description Optional and nullable; omission, explicit null, or boundary-whitespace-only input clears the stored value. */
+      description?: string | null;
+      /** @description Boundary-trimmed and lowercased before validation. Canonical value must match ^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$ and contain at most 10 characters. */
+      languageCode: string;
+      /** @description Optional and nullable; omission, explicit null, or boundary-whitespace-only input clears the stored value. */
+      municipality?: string | null;
+      /** @description Optional and nullable; omission, explicit null, or boundary-whitespace-only input clears the stored value. */
+      neighborhood?: string | null;
+      /** @description Required, boundary-trimmed, nonblank; maximum 200 characters after normalization. */
+      title: string;
     };
     UpdateUserProfileRequest: {
       firstName?: string | null;
@@ -2139,6 +2572,17 @@ export interface operations {
           "text/plain": components["schemas"]["ListingResponsePagedResponse"];
         };
       };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiValidationProblemDetailsResponse"];
+        };
+      };
       /** @description Unauthorized */
       401: {
         headers: {
@@ -2399,9 +2843,9 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ListingResponsePagedResponse"];
-          "text/json": components["schemas"]["ListingResponsePagedResponse"];
-          "text/plain": components["schemas"]["ListingResponsePagedResponse"];
+          "application/json": components["schemas"]["PublicListingResponsePagedResponse"];
+          "text/json": components["schemas"]["PublicListingResponsePagedResponse"];
+          "text/plain": components["schemas"]["PublicListingResponsePagedResponse"];
         };
       };
       /** @description Bad Request */
@@ -2996,6 +3440,7 @@ export interface operations {
         agencyId?: string;
         apartmentType?: components["schemas"]["ApartmentType"];
         city?: string;
+        commercialType?: components["schemas"]["CommercialType"];
         condition?: components["schemas"]["PropertyCondition"];
         currency?: string;
         furnishingStatus?: components["schemas"]["FurnishingStatus"];
@@ -3003,6 +3448,7 @@ export interface operations {
         hasElevator?: boolean;
         heatingType?: components["schemas"]["HeatingType"];
         houseType?: components["schemas"]["HouseType"];
+        landType?: components["schemas"]["LandType"];
         lang?: string;
         listingType?: components["schemas"]["ListingType"];
         maxAreaSquareMeters?: number;
@@ -3037,9 +3483,9 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ListingResponsePagedResponse"];
-          "text/json": components["schemas"]["ListingResponsePagedResponse"];
-          "text/plain": components["schemas"]["ListingResponsePagedResponse"];
+          "application/json": components["schemas"]["PublicListingResponsePagedResponse"];
+          "text/json": components["schemas"]["PublicListingResponsePagedResponse"];
+          "text/plain": components["schemas"]["PublicListingResponsePagedResponse"];
         };
       };
       /** @description Bad Request */
@@ -3174,13 +3620,111 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ListingResponse"];
-          "text/json": components["schemas"]["ListingResponse"];
-          "text/plain": components["schemas"]["ListingResponse"];
+          "application/json": components["schemas"]["PublicListingResponse"];
+          "text/json": components["schemas"]["PublicListingResponse"];
+          "text/plain": components["schemas"]["PublicListingResponse"];
         };
       };
       /** @description Not Found */
       404: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+    };
+  };
+  Listings_UpdateListing: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["UpdateListingRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingAuthoringResponse"];
+          "text/json": components["schemas"]["ListingAuthoringResponse"];
+          "text/plain": components["schemas"]["ListingAuthoringResponse"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiValidationProblemDetailsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          /** @description Bearer authentication challenge. */
+          "WWW-Authenticate"?: string;
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
         headers: {
           /** @description Correlates the response with API logs and problem details. */
           "X-Request-ID"?: string;
@@ -3321,9 +3865,9 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ListingResponse"][];
-          "text/json": components["schemas"]["ListingResponse"][];
-          "text/plain": components["schemas"]["ListingResponse"][];
+          "application/json": components["schemas"]["PublicListingResponse"][];
+          "text/json": components["schemas"]["PublicListingResponse"][];
+          "text/plain": components["schemas"]["PublicListingResponse"][];
         };
       };
       /** @description Bad Request */
@@ -3465,18 +4009,20 @@ export interface operations {
       };
     };
   };
-  Listings_PublishListing: {
+  Listings_ConfirmLocation: {
     parameters: {
-      query?: {
-        lang?: string;
-      };
+      query?: never;
       header?: never;
       path: {
         id: string;
       };
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["ConfirmListingLocationRequest"];
+      };
+    };
     responses: {
       /** @description OK */
       200: {
@@ -3486,9 +4032,9 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ListingResponse"];
-          "text/json": components["schemas"]["ListingResponse"];
-          "text/plain": components["schemas"]["ListingResponse"];
+          "application/json": components["schemas"]["ListingLocationStateResponse"];
+          "text/json": components["schemas"]["ListingLocationStateResponse"];
+          "text/plain": components["schemas"]["ListingLocationStateResponse"];
         };
       };
       /** @description Bad Request */
@@ -3538,6 +4084,403 @@ export interface operations {
         };
       };
       /** @description Conflict */
+      409: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          /** @description Application rate-limit delay in seconds when the limiter provides a deterministic replenishment interval. */
+          "Retry-After"?: number;
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+    };
+  };
+  Listings_ClearLocation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingLocationStateResponse"];
+          "text/json": components["schemas"]["ListingLocationStateResponse"];
+          "text/plain": components["schemas"]["ListingLocationStateResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          /** @description Bearer authentication challenge. */
+          "WWW-Authenticate"?: string;
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+    };
+  };
+  Listings_SearchLocationCandidates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["SearchLocationCandidatesRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingLocationCandidateResponse"][];
+          "text/json": components["schemas"]["ListingLocationCandidateResponse"][];
+          "text/plain": components["schemas"]["ListingLocationCandidateResponse"][];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiValidationProblemDetailsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          /** @description Bearer authentication challenge. */
+          "WWW-Authenticate"?: string;
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          /** @description Application rate-limit delay in seconds when the limiter provides a deterministic replenishment interval. */
+          "Retry-After"?: number;
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+    };
+  };
+  GetListingManagement: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingAuthoringResponse"];
+          "text/json": components["schemas"]["ListingAuthoringResponse"];
+          "text/plain": components["schemas"]["ListingAuthoringResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          /** @description Bearer authentication challenge. */
+          "WWW-Authenticate"?: string;
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+    };
+  };
+  Listings_PublishListing: {
+    parameters: {
+      query?: {
+        lang?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicListingResponse"];
+          "text/json": components["schemas"]["PublicListingResponse"];
+          "text/plain": components["schemas"]["PublicListingResponse"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiValidationProblemDetailsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          /** @description Bearer authentication challenge. */
+          "WWW-Authenticate"?: string;
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          /** @description Correlates the response with API logs and problem details. */
+          "X-Request-ID"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["ApiProblemDetailsResponse"];
+        };
+      };
+      /** @description Conflict. `conflict.resource_state`: The request conflicts with the current resource state. `conflict.listing_not_ready`: The listing is not ready for publication. */
       409: {
         headers: {
           /** @description Correlates the response with API logs and problem details. */
