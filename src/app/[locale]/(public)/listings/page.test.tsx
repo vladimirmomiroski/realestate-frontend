@@ -53,18 +53,22 @@ describe("catalog server page URL integration", () => {
   );
 
   it("keeps the clean URL on the accepted default operation query", async () => {
-    await ListingsPage({
+    const page = await ListingsPage({
       params: Promise.resolve({ locale: "en" }),
       searchParams: Promise.resolve({}),
     });
+    render(page);
 
     expect(getPublicListings).toHaveBeenCalledExactlyOnceWith({
       locale: "en",
       query: {},
     });
+    expect(
+      screen.getByRole("searchbox", { name: "Keyword or location" })
+    ).toHaveValue("");
   });
 
-  it.each([{ q: "x" }, { q: ["Skopje", "Bitola"] }])(
+  it.each([{ q: "x" }, { q: "x".repeat(101) }, { q: ["Skopje", "Bitola"] }])(
     "suppresses the backend request for invalid q $q",
     async (searchParams) => {
       const page = await ListingsPage({
@@ -80,6 +84,10 @@ describe("catalog server page URL integration", () => {
       expect(
         screen.queryByRole("region", { name: "Results" })
       ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("searchbox", { name: "Keyword or location" })
+      ).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByRole("alert")).toBeInTheDocument();
     }
   );
 });

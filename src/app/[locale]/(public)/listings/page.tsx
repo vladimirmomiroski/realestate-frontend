@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { getPublicListings } from "@/features/listings/api/get-public-listings.server";
 import { PublicListingCardView } from "@/features/listings/components/public-listing-card";
+import { PublicListingsSearchForm } from "@/features/listings/components/public-listings-search-form";
 import {
   parsePublicListingsSearchParams,
   toPublicListingsQuery,
@@ -49,6 +50,11 @@ export default async function ListingsPage({
           {dictionary.listings.subtitle}
         </p>
       </section>
+      <PublicListingsSearchForm
+        locale={locale}
+        search={search}
+        labels={dictionary.listings}
+      />
       {listings && (
         <section
           aria-label={dictionary.listings.results}
