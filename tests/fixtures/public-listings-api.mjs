@@ -97,11 +97,13 @@ const page = {
 createServer((request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost:5231");
   const { searchParams } = url;
+  const keywordSearch =
+    searchParams.size === 3 && searchParams.get("q") === "Family";
 
   if (
     request.method !== "GET" ||
     url.pathname !== "/api/listings" ||
-    searchParams.size !== 2 ||
+    (searchParams.size !== 2 && !keywordSearch) ||
     !["mk", "en"].includes(searchParams.get("lang")) ||
     searchParams.get("pageSize") !== "20"
   ) {
@@ -113,5 +115,9 @@ createServer((request, response) => {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
   });
-  response.end(JSON.stringify(page));
+  response.end(
+    JSON.stringify(
+      keywordSearch ? { ...page, items: [listings[1]], totalCount: 1 } : page
+    )
+  );
 }).listen(5231, "localhost");

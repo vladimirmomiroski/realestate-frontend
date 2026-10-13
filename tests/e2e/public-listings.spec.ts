@@ -77,4 +77,84 @@ for (const { locale, dictionary } of localeCases) {
     await expect(cards.nth(0).getByRole("link")).toHaveCount(0);
     expect(browserApiRequests).toEqual([]);
   });
+
+  test(`${locale} submits a keyword and clears back to the clean catalog`, async ({
+    page,
+  }) => {
+    await page.goto(`/${locale}/listings`);
+
+    const input = page.getByRole("searchbox", {
+      name: dictionary.listings.searchLabel,
+    });
+    await input.fill("Family");
+
+    if (locale === "en") {
+      await input.press("Enter");
+    } else {
+      await page
+        .getByRole("button", { name: dictionary.listings.search })
+        .click();
+    }
+
+    await expect(page).toHaveURL(
+      `http://127.0.0.1:3000/${locale}/listings?q=Family`
+    );
+    await expect(input).toHaveValue("Family");
+    const cards = page.getByRole("article");
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText("Family house");
+
+    await page
+      .getByRole("link", { name: dictionary.listings.clearSearch })
+      .click();
+    await expect(page).toHaveURL(`http://127.0.0.1:3000/${locale}/listings`);
+    await expect(page.getByRole("article")).toHaveCount(4);
+  });
 }
+
+test("invalid direct keyword shows feedback and Enter submission resets page", async ({
+  page,
+}) => {
+  await page.goto("/en/listings?q=x&page=4");
+
+  const input = page.getByRole("searchbox", {
+    name: en.listings.searchLabel,
+  });
+  await expect(input).toHaveValue("x");
+  await expect(input).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText(en.listings.searchTooShort)).toBeVisible();
+  await expect(
+    page.getByText(en.listings.searchInvalidSummary)
+  ).toHaveAttribute("role", "alert");
+  await expect(page.getByRole("article")).toHaveCount(0);
+
+  await input.fill("Family");
+  await input.press("Enter");
+
+  await expect(page).toHaveURL("http://127.0.0.1:3000/en/listings?q=Family");
+  await expect(page.getByRole("article")).toHaveCount(1);
+});
+
+test("keyword search remains a native GET when JavaScript is disabled", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: "http://127.0.0.1:3000",
+    javaScriptEnabled: false,
+  });
+
+  try {
+    const page = await context.newPage();
+    await page.goto("/en/listings");
+    const input = page.getByRole("searchbox", {
+      name: en.listings.searchLabel,
+    });
+    await input.fill("Family");
+    await input.press("Enter");
+
+    await expect(page).toHaveURL("http://127.0.0.1:3000/en/listings?q=Family");
+    await expect(page.getByRole("article")).toHaveCount(1);
+  } finally {
+    await context.close();
+  }
+});

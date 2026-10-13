@@ -82,6 +82,13 @@ export type Dictionary = {
     neighborhood: string;
     status: string;
     search: string;
+    searchLabel: string;
+    searchHint: string;
+    searchTooShort: string;
+    searchTooLong: string;
+    searchRepeated: string;
+    searchInvalidSummary: string;
+    clearSearch: string;
     reset: string;
     previousPage: string;
     nextPage: string;
