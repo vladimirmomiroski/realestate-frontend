@@ -106,6 +106,7 @@ export const mk = {
     page: "Страница",
     totalResults: "Вкупно резултати",
     notSpecified: "Не е наведено",
+    imageUnavailable: "Сликата не е достапна",
     listingTypes: {
       Sale: "Продажба",
       Rent: "Изнајмување",

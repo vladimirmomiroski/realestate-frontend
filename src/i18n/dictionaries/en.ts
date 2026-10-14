@@ -105,6 +105,7 @@ export const en = {
     page: "Page",
     totalResults: "Total results",
     notSpecified: "Not specified",
+    imageUnavailable: "Image unavailable",
     listingTypes: {
       Sale: "Sale",
       Rent: "Rent",

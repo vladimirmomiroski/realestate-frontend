@@ -1,5 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 import { en } from "@/i18n/dictionaries/en";
 import { mk } from "@/i18n/dictionaries/mk";
@@ -48,6 +50,9 @@ describe("PublicListingCardView", () => {
     expect(within(article).queryByRole("link")).not.toBeInTheDocument();
     expect(within(article).queryByRole("button")).not.toBeInTheDocument();
     expect(within(article).queryByRole("img")).not.toBeInTheDocument();
+    expect(
+      within(article).getByText(en.listings.imageUnavailable)
+    ).toBeInTheDocument();
   });
 
   it.each([
@@ -197,5 +202,51 @@ describe("PublicListingCardView", () => {
     expect(
       within(article).getByText(en.listings.pricePerSquareMeter)
     ).toBeInTheDocument();
+  });
+
+  it("resolves a valid primary upload through the configured media resolver", () => {
+    render(
+      <PublicListingCardView
+        listing={{
+          ...listing,
+          primaryImageUrl: "/uploads/listings/preview.png",
+        }}
+        locale="en"
+        dictionary={en}
+      />
+    );
+
+    const article = screen.getByRole("article", { name: listing.title });
+    const image = within(article).getByAltText("");
+    const optimizedUrl = new URL(
+      image.getAttribute("src") ?? "",
+      "http://localhost:3000"
+    );
+    expect(optimizedUrl.pathname).toBe("/_next/image");
+    expect(optimizedUrl.searchParams.get("url")).toBe(
+      "http://localhost:5231/uploads/listings/preview.png"
+    );
+    expect(within(article).getByText(listing.title)).toBeInTheDocument();
+    expect(within(article).getByText(en.listings.price)).toBeInTheDocument();
+  });
+
+  it.each([
+    "https://outside.example/uploads/listings/preview.png",
+    "//outside.example/uploads/listings/preview.png",
+    "/images/preview.png",
+  ])("shows fallback for a rejected primary path: %s", (primaryImageUrl) => {
+    const { container } = render(
+      <PublicListingCardView
+        listing={{ ...listing, primaryImageUrl }}
+        locale="mk"
+        dictionary={mk}
+      />
+    );
+
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByText(mk.listings.imageUnavailable)).toBeInTheDocument();
+    expect(
+      screen.getByRole("article", { name: listing.title })
+    ).toHaveTextContent(listing.title);
   });
 });
