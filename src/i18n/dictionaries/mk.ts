@@ -78,6 +78,8 @@ export const mk = {
     emptyDescription: "Променете ги филтрите или локацијата.",
     listingType: "Тип на оглас",
     propertyType: "Тип на имот",
+    allListingTypes: "Сите типови на огласи",
+    allPropertyTypes: "Сите типови на имоти",
     price: "Цена",
     minPrice: "Минимална цена",
     maxPrice: "Максимална цена",

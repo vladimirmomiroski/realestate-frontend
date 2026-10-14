@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { en } from "@/i18n/dictionaries/en";
@@ -30,6 +31,12 @@ describe("PublicListingsSearchForm", () => {
       const input = within(form).getByRole("searchbox", {
         name: dictionary.listings.searchLabel,
       });
+      const listingType = within(form).getByRole("combobox", {
+        name: dictionary.listings.listingType,
+      });
+      const propertyType = within(form).getByRole("combobox", {
+        name: dictionary.listings.propertyType,
+      });
 
       expect(form).toHaveAttribute("action", `/${locale}/listings`);
       expect(form).not.toHaveAttribute("method");
@@ -37,6 +44,41 @@ describe("PublicListingsSearchForm", () => {
       expect(input).toHaveValue("");
       expect(input).not.toHaveAttribute("aria-invalid");
       expect(input).toHaveAccessibleDescription(dictionary.listings.searchHint);
+      expect(listingType).toHaveAttribute("name", "listingType");
+      expect(propertyType).toHaveAttribute("name", "propertyType");
+      expect(listingType).toHaveValue("");
+      expect(propertyType).toHaveValue("");
+      expect(
+        within(listingType)
+          .getAllByRole("option")
+          .map((option) => ({
+            value: (option as HTMLOptionElement).value,
+            label: option.textContent,
+          }))
+      ).toEqual([
+        { value: "", label: dictionary.listings.allListingTypes },
+        { value: "Sale", label: dictionary.listings.listingTypes.Sale },
+        { value: "Rent", label: dictionary.listings.listingTypes.Rent },
+      ]);
+      expect(
+        within(propertyType)
+          .getAllByRole("option")
+          .map((option) => ({
+            value: (option as HTMLOptionElement).value,
+            label: option.textContent,
+          }))
+      ).toEqual([
+        { value: "", label: dictionary.listings.allPropertyTypes },
+        {
+          value: "Apartment",
+          label: dictionary.listings.propertyTypes.Apartment,
+        },
+        { value: "House", label: dictionary.listings.propertyTypes.House },
+      ]);
+      expect(form.querySelector('[name="page"]')).toBeNull();
+      expect(
+        form.querySelector('[name="lang"], [name="sort"], [name="pageSize"]')
+      ).toBeNull();
       expect(
         within(form).getByRole("button", { name: dictionary.listings.search })
       ).toHaveAttribute("type", "submit");
@@ -47,6 +89,97 @@ describe("PublicListingsSearchForm", () => {
       ).not.toBeInTheDocument();
     }
   );
+
+  it.each([
+    { listingType: "Sale", propertyType: "Apartment" },
+    { listingType: "Rent", propertyType: "House" },
+  ])(
+    "restores combined keyword and $listingType/$propertyType selections",
+    ({ listingType, propertyType }) => {
+      const search = parsePublicListingsSearchParams({
+        q: "  Family  ",
+        listingType,
+        propertyType,
+        page: "4",
+      });
+      render(
+        <PublicListingsSearchForm
+          locale="en"
+          search={search}
+          labels={en.listings}
+        />
+      );
+
+      const form = screen.getByRole("search", { name: en.listings.search });
+      expect(within(form).getByRole("searchbox")).toHaveValue("Family");
+      expect(
+        within(form).getByRole("combobox", { name: en.listings.listingType })
+      ).toHaveValue(listingType);
+      expect(
+        within(form).getByRole("combobox", { name: en.listings.propertyType })
+      ).toHaveValue(propertyType);
+      expect(new FormData(form as HTMLFormElement).get("q")).toBe("Family");
+      expect(new FormData(form as HTMLFormElement).get("listingType")).toBe(
+        listingType
+      );
+      expect(new FormData(form as HTMLFormElement).get("propertyType")).toBe(
+        propertyType
+      );
+      expect(new FormData(form as HTMLFormElement).has("page")).toBe(false);
+      expect(
+        screen.getByRole("link", { name: en.listings.reset })
+      ).toHaveAttribute("href", "/en/listings");
+    }
+  );
+
+  it("normalizes unsupported and repeated selections to All", () => {
+    render(
+      <PublicListingsSearchForm
+        locale="mk"
+        search={parsePublicListingsSearchParams({
+          listingType: ["Sale", "Rent"],
+          propertyType: "Commercial",
+        })}
+        labels={mk.listings}
+      />
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: mk.listings.listingType })
+    ).toHaveValue("");
+    expect(
+      screen.getByRole("combobox", { name: mk.listings.propertyType })
+    ).toHaveValue("");
+    expect(screen.queryByRole("link", { name: mk.listings.reset })).toBeNull();
+  });
+
+  it("tabs through keyword, both selects, submit, then reset", async () => {
+    const user = userEvent.setup();
+    render(
+      <PublicListingsSearchForm
+        locale="en"
+        search={parsePublicListingsSearchParams({ listingType: "Rent" })}
+        labels={en.listings}
+      />
+    );
+
+    await user.tab();
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+    await user.tab();
+    expect(
+      screen.getByRole("combobox", { name: en.listings.listingType })
+    ).toHaveFocus();
+    await user.tab();
+    expect(
+      screen.getByRole("combobox", { name: en.listings.propertyType })
+    ).toHaveFocus();
+    await user.tab();
+    expect(
+      screen.getByRole("button", { name: en.listings.search })
+    ).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("link", { name: en.listings.reset })).toHaveFocus();
+  });
 
   it.each(locales)(
     "restores a normalized valid keyword and offers $locale clear navigation",

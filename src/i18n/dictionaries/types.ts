@@ -70,6 +70,8 @@ export type Dictionary = {
     emptyDescription: string;
     listingType: string;
     propertyType: string;
+    allListingTypes: string;
+    allPropertyTypes: string;
     price: string;
     minPrice: string;
     maxPrice: string;

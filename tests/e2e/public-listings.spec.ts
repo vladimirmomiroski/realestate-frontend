@@ -80,6 +80,7 @@ for (const { locale, dictionary } of localeCases) {
 
   test(`${locale} submits a keyword and clears back to the clean catalog`, async ({
     page,
+    baseURL,
   }) => {
     await page.goto(`/${locale}/listings`);
 
@@ -96,9 +97,8 @@ for (const { locale, dictionary } of localeCases) {
         .click();
     }
 
-    await expect(page).toHaveURL(
-      `http://127.0.0.1:3000/${locale}/listings?q=Family`
-    );
+    await expect(page).toHaveURL(new RegExp(`/${locale}/listings\\?q=Family`));
+    expect(new URL(page.url()).searchParams.has("page")).toBe(false);
     await expect(input).toHaveValue("Family");
     const cards = page.getByRole("article");
     await expect(cards).toHaveCount(1);
@@ -107,8 +107,125 @@ for (const { locale, dictionary } of localeCases) {
     await page
       .getByRole("link", { name: dictionary.listings.clearSearch })
       .click();
-    await expect(page).toHaveURL(`http://127.0.0.1:3000/${locale}/listings`);
+    await expect(page).toHaveURL(`${baseURL}/${locale}/listings`);
     await expect(page.getByRole("article")).toHaveCount(4);
+  });
+
+  test(`${locale} submits combined filters and resets to the clean catalog`, async ({
+    page,
+    baseURL,
+  }) => {
+    const browserApiRequests: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).port === "5231") {
+        browserApiRequests.push(request.url());
+      }
+    });
+
+    await page.goto(`/${locale}/listings?q=x&page=3`);
+    const keyword = page.getByRole("searchbox", {
+      name: dictionary.listings.searchLabel,
+    });
+    const listingType = page.getByRole("combobox", {
+      name: dictionary.listings.listingType,
+    });
+    const propertyType = page.getByRole("combobox", {
+      name: dictionary.listings.propertyType,
+    });
+    await expect(listingType).toHaveValue("");
+    await expect(propertyType).toHaveValue("");
+    await expect(
+      listingType.getByRole("option", {
+        name: dictionary.listings.allListingTypes,
+      })
+    ).toHaveAttribute("value", "");
+    await expect(
+      propertyType.getByRole("option", {
+        name: dictionary.listings.allPropertyTypes,
+      })
+    ).toHaveAttribute("value", "");
+    await keyword.fill("Family");
+    await listingType.selectOption("Rent");
+    await propertyType.selectOption("House");
+    await page
+      .getByRole("button", { name: dictionary.listings.search })
+      .click();
+
+    await expect(page).toHaveURL(new RegExp(`/${locale}/listings\\?q=Family`));
+    const url = new URL(page.url());
+    expect(url.searchParams.get("q")).toBe("Family");
+    expect(url.searchParams.get("listingType")).toBe("Rent");
+    expect(url.searchParams.get("propertyType")).toBe("House");
+    expect(url.searchParams.has("page")).toBe(false);
+    await expect(keyword).toHaveValue("Family");
+    await expect(listingType).toHaveValue("Rent");
+    await expect(propertyType).toHaveValue("House");
+    await expect(page.getByRole("article")).toHaveCount(1);
+    await expect(page.getByRole("article")).toContainText("Family house");
+    expect(browserApiRequests).toEqual([]);
+
+    await page.getByRole("link", { name: dictionary.listings.reset }).click();
+    await expect(page).toHaveURL(`${baseURL}/${locale}/listings`);
+    await expect(keyword).toHaveValue("");
+    await expect(listingType).toHaveValue("");
+    await expect(propertyType).toHaveValue("");
+    await expect(page.getByRole("article")).toHaveCount(4);
+
+    await listingType.selectOption("Rent");
+    await page
+      .getByRole("button", { name: dictionary.listings.search })
+      .click();
+    await expect(page).toHaveURL(/listingType=Rent/);
+    expect(new URL(page.url()).searchParams.get("listingType")).toBe("Rent");
+    await expect(listingType).toHaveValue("Rent");
+    await expect(propertyType).toHaveValue("");
+    await expect(page.getByRole("article")).toHaveCount(2);
+    await expect(page.getByRole("article").nth(0)).toContainText(
+      "Family house"
+    );
+    await expect(page.getByRole("article").nth(1)).toContainText(
+      "Office by the square"
+    );
+
+    await listingType.selectOption("");
+    await propertyType.selectOption("Apartment");
+    await page
+      .getByRole("button", { name: dictionary.listings.search })
+      .click();
+    await expect(page).toHaveURL(/propertyType=Apartment/);
+    expect(new URL(page.url()).searchParams.get("propertyType")).toBe(
+      "Apartment"
+    );
+    await expect(listingType).toHaveValue("");
+    await expect(propertyType).toHaveValue("Apartment");
+    await expect(page.getByRole("article")).toHaveCount(1);
+    await expect(page.getByRole("article")).toContainText("Стан во Центар");
+
+    await listingType.selectOption("Rent");
+    await page
+      .getByRole("button", { name: dictionary.listings.search })
+      .click();
+    await expect(page).toHaveURL(/listingType=Rent.*propertyType=Apartment/);
+    const combinedUrl = new URL(page.url());
+    expect(combinedUrl.searchParams.get("q")).toBe("");
+    expect(combinedUrl.searchParams.get("listingType")).toBe("Rent");
+    expect(combinedUrl.searchParams.get("propertyType")).toBe("Apartment");
+    await expect(keyword).toHaveValue("");
+    await expect(listingType).toHaveValue("Rent");
+    await expect(propertyType).toHaveValue("Apartment");
+    await expect(
+      page.getByRole("region", { name: dictionary.listings.results })
+    ).toHaveCount(1);
+    await expect(page.getByRole("article")).toHaveCount(0);
+    expect(browserApiRequests).toEqual([]);
+
+    await page.setViewportSize({ width: 360, height: 800 });
+    await expect(keyword).toBeVisible();
+    await expect(listingType).toBeVisible();
+    await expect(propertyType).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth)
+    ).toBeLessThanOrEqual(360);
   });
 }
 
@@ -131,15 +248,16 @@ test("invalid direct keyword shows feedback and Enter submission resets page", a
   await input.fill("Family");
   await input.press("Enter");
 
-  await expect(page).toHaveURL("http://127.0.0.1:3000/en/listings?q=Family");
+  await expect(page).toHaveURL(/\/en\/listings\?q=Family/);
   await expect(page.getByRole("article")).toHaveCount(1);
 });
 
-test("keyword search remains a native GET when JavaScript is disabled", async ({
+test("combined search remains a native GET when JavaScript is disabled", async ({
   browser,
+  baseURL,
 }) => {
   const context = await browser.newContext({
-    baseURL: "http://127.0.0.1:3000",
+    baseURL,
     javaScriptEnabled: false,
   });
 
@@ -150,9 +268,19 @@ test("keyword search remains a native GET when JavaScript is disabled", async ({
       name: en.listings.searchLabel,
     });
     await input.fill("Family");
+    await page
+      .getByRole("combobox", { name: en.listings.listingType })
+      .selectOption("Rent");
+    await page
+      .getByRole("combobox", { name: en.listings.propertyType })
+      .selectOption("House");
     await input.press("Enter");
 
-    await expect(page).toHaveURL("http://127.0.0.1:3000/en/listings?q=Family");
+    await expect(page).toHaveURL(/\/en\/listings\?q=Family/);
+    const url = new URL(page.url());
+    expect(url.searchParams.get("listingType")).toBe("Rent");
+    expect(url.searchParams.get("propertyType")).toBe("House");
+    expect(url.searchParams.has("page")).toBe(false);
     await expect(page.getByRole("article")).toHaveCount(1);
   } finally {
     await context.close();
