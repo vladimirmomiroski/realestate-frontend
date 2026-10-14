@@ -97,6 +97,7 @@ export type Dictionary = {
     page: string;
     totalResults: string;
     notSpecified: string;
+    imageUnavailable: string;
     listingTypes: {
       Sale: string;
       Rent: string;

@@ -17,10 +17,14 @@ for (const { locale, dictionary } of localeCases) {
     page,
   }) => {
     const browserApiRequests: string[] = [];
+    const unsafeMediaRequests: string[] = [];
     page.on("request", (request) => {
       const url = new URL(request.url());
       if (url.port === "5231") {
         browserApiRequests.push(request.url());
+      }
+      if (url.hostname === "outside.example") {
+        unsafeMediaRequests.push(request.url());
       }
     });
 
@@ -39,6 +43,17 @@ for (const { locale, dictionary } of localeCases) {
     await expect(cards).toHaveCount(4);
 
     await expect(cards.nth(0)).toContainText("Стан во Центар");
+    const preview = cards.nth(0).locator("img");
+    await expect(preview).toHaveAttribute("alt", "");
+    await expect(preview).toHaveAttribute("src", /\/_next\/image\?/);
+    await preview.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        preview.evaluate(
+          (image: HTMLImageElement) => image.complete && image.naturalWidth > 0
+        )
+      )
+      .toBe(true);
     await expect(cards.nth(0)).toContainText("Дебар Маало, Центар, Скопје");
     await expect(cards.nth(0)).toContainText(
       `${dictionary.listings.listingTypes.Sale} · ${dictionary.listings.propertyTypes.Apartment}`
@@ -54,6 +69,10 @@ for (const { locale, dictionary } of localeCases) {
     ).toHaveAttribute("lang", "mk");
 
     await expect(cards.nth(1)).toContainText("Family house");
+    await expect(
+      cards.nth(1).getByText(dictionary.listings.imageUnavailable)
+    ).toBeVisible();
+    await expect(cards.nth(1).locator("img")).toHaveCount(0);
     await expect(cards.nth(1)).toContainText(
       dictionary.listings.propertyTypes.House
     );
@@ -64,6 +83,10 @@ for (const { locale, dictionary } of localeCases) {
       dictionary.listings.propertyTypes.Commercial
     );
     await expect(
+      cards.nth(2).getByText(dictionary.listings.imageUnavailable)
+    ).toBeVisible();
+    await expect(cards.nth(2).locator("img")).toHaveCount(0);
+    await expect(
       cards.nth(2).getByText("Bitola", { exact: true })
     ).toBeVisible();
     await expect(cards.nth(2)).not.toContainText("Bitola, Bitola");
@@ -71,11 +94,27 @@ for (const { locale, dictionary } of localeCases) {
       dictionary.listings.propertyTypes.Land
     );
     await expect(
+      cards.nth(3).getByText(dictionary.listings.imageUnavailable)
+    ).toBeVisible();
+    await expect(cards.nth(3).locator("img")).toHaveCount(0);
+    await expect(
       cards.nth(3).getByText("Охрид", { exact: true })
     ).toBeVisible();
     await expect(cards.nth(3)).not.toContainText("Охрид, Охрид");
     await expect(cards.nth(0).getByRole("link")).toHaveCount(0);
+    const frames = cards.locator('div[class*="aspect-"]');
+    await expect(frames).toHaveCount(4);
+    const sizes = await Promise.all(
+      [0, 1, 2, 3].map((index) => frames.nth(index).boundingBox())
+    );
+    for (const size of sizes) {
+      expect(size).not.toBeNull();
+      expect(size!.width / size!.height).toBeCloseTo(4 / 3, 1);
+      expect(size!.width).toBeCloseTo(sizes[0]!.width, 0);
+      expect(size!.height).toBeCloseTo(sizes[0]!.height, 0);
+    }
     expect(browserApiRequests).toEqual([]);
+    expect(unsafeMediaRequests).toEqual([]);
   });
 
   test(`${locale} submits a keyword and clears back to the clean catalog`, async ({

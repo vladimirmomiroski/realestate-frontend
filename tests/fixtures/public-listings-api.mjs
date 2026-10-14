@@ -21,7 +21,7 @@ const listings = [
     latitude: 41.9981,
     longitude: 21.4254,
     locationPrecision: "Street",
-    primaryImageUrl: null,
+    primaryImageUrl: "/uploads/listings/catalog-preview.png",
   },
   {
     id: "22222222-2222-4222-8222-222222222222",
@@ -61,6 +61,7 @@ const listings = [
     latitude: 41.031,
     longitude: 21.334,
     locationPrecision: "Municipality",
+    primaryImageUrl: "https://outside.example/uploads/listings/office.png",
     commercialDetails: { commercialType: "Office" },
   },
   {
@@ -80,6 +81,7 @@ const listings = [
     latitude: 41.123,
     longitude: 20.802,
     locationPrecision: "City",
+    primaryImageUrl: "/uploads/listings/missing.png",
     landDetails: { landType: "BuildingPlot" },
   },
 ];
@@ -94,8 +96,31 @@ const page = {
   hasPreviousPage: false,
 };
 
+const previewPng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAADAAAAAkCAIAAABAJy5dAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAUElEQVRYhe2WQQ0AQAzCpg5PqKjlk8E9mkwAIdBxKV/dzRVEQehQzVBsGXP8RDCiQzVDsWXMIRQHGjpUMxRbhhxCMNbXEZ8rzo/up1n+HGgPv5jO+dK5f1gAAAAASUVORK5CYII=",
+  "base64"
+);
+
 createServer((request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost:5231");
+  if (
+    request.method === "GET" &&
+    url.pathname === "/uploads/listings/catalog-preview.png"
+  ) {
+    response.writeHead(200, {
+      "Content-Type": "image/png",
+      "Cache-Control": "no-store",
+    });
+    response.end(previewPng);
+    return;
+  }
+  if (
+    request.method === "GET" &&
+    url.pathname === "/uploads/listings/missing.png"
+  ) {
+    response.writeHead(404).end();
+    return;
+  }
   const { searchParams } = url;
   const allowedKeys = new Set([
     "lang",

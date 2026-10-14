@@ -7,6 +7,9 @@ const mediaUrl = new URL(MEDIA_BASE_URL);
 
 const nextConfig: NextConfig = {
   images: {
+    dangerouslyAllowLocalIP:
+      process.env.NODE_ENV !== "production" &&
+      (mediaUrl.hostname === "localhost" || mediaUrl.hostname === "127.0.0.1"),
     remotePatterns: [
       {
         protocol: mediaUrl.protocol === "http:" ? "http" : "https",
