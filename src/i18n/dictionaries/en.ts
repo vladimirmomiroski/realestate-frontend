@@ -77,6 +77,8 @@ export const en = {
     emptyDescription: "Try changing your filters or search area.",
     listingType: "Listing type",
     propertyType: "Property type",
+    allListingTypes: "All listing types",
+    allPropertyTypes: "All property types",
     price: "Price",
     minPrice: "Minimum price",
     maxPrice: "Maximum price",

@@ -97,15 +97,29 @@ const page = {
 createServer((request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost:5231");
   const { searchParams } = url;
-  const keywordSearch =
-    searchParams.size === 3 && searchParams.get("q") === "Family";
+  const allowedKeys = new Set([
+    "lang",
+    "pageSize",
+    "q",
+    "listingType",
+    "propertyType",
+  ]);
+  const validKeys = [...searchParams.keys()].every(
+    (key) => allowedKeys.has(key) && searchParams.getAll(key).length === 1
+  );
+  const q = searchParams.get("q");
+  const listingType = searchParams.get("listingType");
+  const propertyType = searchParams.get("propertyType");
 
   if (
     request.method !== "GET" ||
     url.pathname !== "/api/listings" ||
-    (searchParams.size !== 2 && !keywordSearch) ||
+    !validKeys ||
     !["mk", "en"].includes(searchParams.get("lang")) ||
-    searchParams.get("pageSize") !== "20"
+    searchParams.get("pageSize") !== "20" ||
+    ![null, "", "Family"].includes(q) ||
+    ![null, "", "Sale", "Rent"].includes(listingType) ||
+    ![null, "", "Apartment", "House"].includes(propertyType)
   ) {
     response.writeHead(404).end();
     return;
@@ -115,9 +129,18 @@ createServer((request, response) => {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
   });
+  const items = listings.filter(
+    (listing) =>
+      (q !== "Family" || listing.title === "Family house") &&
+      (!listingType || listing.listingType === listingType) &&
+      (!propertyType || listing.propertyType === propertyType)
+  );
   response.end(
-    JSON.stringify(
-      keywordSearch ? { ...page, items: [listings[1]], totalCount: 1 } : page
-    )
+    JSON.stringify({
+      ...page,
+      items,
+      totalCount: items.length,
+      totalPages: items.length ? 1 : 0,
+    })
   );
 }).listen(5231, "localhost");

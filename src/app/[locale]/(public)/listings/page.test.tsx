@@ -68,6 +68,63 @@ describe("catalog server page URL integration", () => {
     ).toHaveValue("");
   });
 
+  it("passes normalized selections to the form and server query", async () => {
+    const page = await ListingsPage({
+      params: Promise.resolve({ locale: "en" }),
+      searchParams: Promise.resolve({
+        q: " Family ",
+        listingType: "Rent",
+        propertyType: "House",
+        page: "2",
+        lang: "mk",
+      }),
+    });
+    render(page);
+
+    expect(getPublicListings).toHaveBeenCalledExactlyOnceWith({
+      locale: "en",
+      query: {
+        q: "Family",
+        listingType: "Rent",
+        propertyType: "House",
+        page: 2,
+      },
+    });
+    expect(screen.getByRole("searchbox")).toHaveValue("Family");
+    expect(screen.getByRole("combobox", { name: "Listing type" })).toHaveValue(
+      "Rent"
+    );
+    expect(screen.getByRole("combobox", { name: "Property type" })).toHaveValue(
+      "House"
+    );
+    expect(screen.getByRole("link", { name: "Reset" })).toHaveAttribute(
+      "href",
+      "/en/listings"
+    );
+  });
+
+  it("normalizes unsupported or repeated filter values before querying", async () => {
+    const page = await ListingsPage({
+      params: Promise.resolve({ locale: "mk" }),
+      searchParams: Promise.resolve({
+        listingType: ["Sale", "Rent"],
+        propertyType: "Land",
+      }),
+    });
+    render(page);
+
+    expect(getPublicListings).toHaveBeenCalledExactlyOnceWith({
+      locale: "mk",
+      query: {},
+    });
+    expect(screen.getByRole("combobox", { name: "Тип на оглас" })).toHaveValue(
+      ""
+    );
+    expect(screen.getByRole("combobox", { name: "Тип на имот" })).toHaveValue(
+      ""
+    );
+  });
+
   it.each([{ q: "x" }, { q: "x".repeat(101) }, { q: ["Skopje", "Bitola"] }])(
     "suppresses the backend request for invalid q $q",
     async (searchParams) => {
