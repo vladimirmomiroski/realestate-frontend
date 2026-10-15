@@ -96,6 +96,11 @@ export type Dictionary = {
     nextPage: string;
     page: string;
     totalResults: string;
+    resultCount: {
+      zero: string;
+      one: string;
+      many: string;
+    };
     notSpecified: string;
     imageUnavailable: string;
     listingTypes: {
