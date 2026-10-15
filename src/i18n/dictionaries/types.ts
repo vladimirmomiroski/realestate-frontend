@@ -49,6 +49,8 @@ export type Dictionary = {
     retry: string;
     requestIdLabel: string;
     copyRequestId: string;
+    requestIdCopied: string;
+    requestIdCopyFailed: string;
     notFoundTitle: string;
     notFoundDescription: string;
     backHome: string;
@@ -62,6 +64,14 @@ export type Dictionary = {
   };
 
   listings: {
+    failure: {
+      title: string;
+      validation: string;
+      server: string;
+      http: string;
+      malformed: string;
+      network: string;
+    };
     title: string;
     subtitle: string;
     filters: string;

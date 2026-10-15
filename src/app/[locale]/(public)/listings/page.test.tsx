@@ -2,11 +2,24 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 vi.mock("@/features/listings/api/get-public-listings.server", () => ({
   getPublicListings: vi.fn(),
 }));
 
 import { getPublicListings } from "@/features/listings/api/get-public-listings.server";
+import { en } from "@/i18n/dictionaries/en";
+import { mk } from "@/i18n/dictionaries/mk";
+import {
+  ApiAbortError,
+  ApiHttpError,
+  ApiNetworkError,
+  ApiProblemError,
+  MalformedApiResponseError,
+} from "@/lib/api/api-error";
 
 import ListingsPage from "./page";
 
@@ -23,6 +36,135 @@ describe("catalog server page URL integration", () => {
       hasPreviousPage: false,
     });
   });
+
+  for (const { locale, dictionary } of [
+    { locale: "en", dictionary: en },
+    { locale: "mk", dictionary: mk },
+  ] as const) {
+    it.each([
+      [
+        new ApiProblemError({
+          status: 400,
+          code: "validation.failed",
+          title: "Private",
+          requestId: "validation-id",
+        }),
+        "validation",
+        "validation-id",
+      ],
+      [
+        new ApiProblemError({
+          status: 500,
+          code: "server.unexpected",
+          title: "Private",
+          detail: "secret",
+          requestId: "server-id",
+        }),
+        "server",
+        "server-id",
+      ],
+      [
+        new ApiHttpError(502, "Gateway", undefined, "text/plain", "secret"),
+        "http",
+        undefined,
+      ],
+      [
+        new MalformedApiResponseError(
+          200,
+          "invalid-success-body",
+          "malformed-id"
+        ),
+        "malformed",
+        "malformed-id",
+      ],
+      [new ApiNetworkError(), "network", undefined],
+    ] as const)(
+      `${locale} presents classified %s separately from empty results`,
+      async (error, key, requestId) => {
+        vi.mocked(getPublicListings).mockRejectedValueOnce(error);
+        const { container } = render(
+          await ListingsPage({
+            params: Promise.resolve({ locale }),
+            searchParams: Promise.resolve({
+              q: "Paged",
+              listingType: "Rent",
+              propertyType: "House",
+              page: "2",
+            }),
+          })
+        );
+        expect(getPublicListings).toHaveBeenCalledExactlyOnceWith({
+          locale,
+          query: {
+            q: "Paged",
+            listingType: "Rent",
+            propertyType: "House",
+            page: 2,
+          },
+        });
+        expect(screen.getByRole("alert")).toHaveAccessibleName(
+          dictionary.listings.failure.title
+        );
+        expect(
+          screen.getByText(dictionary.listings.failure[key])
+        ).toBeInTheDocument();
+        expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+        expect(
+          screen.getByRole("button", { name: dictionary.errors.retry })
+        ).toBeInTheDocument();
+        expect(screen.getByRole("searchbox")).toHaveValue("Paged");
+        expect(
+          screen.getByRole("combobox", {
+            name: dictionary.listings.listingType,
+          })
+        ).toHaveValue("Rent");
+        expect(
+          screen.getByRole("combobox", {
+            name: dictionary.listings.propertyType,
+          })
+        ).toHaveValue("House");
+        expect(
+          screen.queryByRole("region", {
+            name: dictionary.listings.results,
+          })
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole("article")).not.toBeInTheDocument();
+        expect(
+          screen.queryByText(dictionary.listings.catalogEmptyTitle)
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByText(dictionary.listings.emptyPageTitle)
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByRole("navigation", {
+            name: dictionary.listings.pagination,
+          })
+        ).not.toBeInTheDocument();
+        if (requestId) {
+          expect(screen.getByText(requestId)).toBeInTheDocument();
+        } else {
+          expect(
+            screen.queryByText(dictionary.errors.requestIdLabel)
+          ).not.toBeInTheDocument();
+        }
+        expect(container).not.toHaveTextContent(/Private|secret|Gateway/);
+      }
+    );
+  }
+
+  it.each([new ApiAbortError(), new Error("Unexpected rendering failure")])(
+    "propagates %s instead of fabricating a classified failure",
+    async (error) => {
+      vi.mocked(getPublicListings).mockRejectedValueOnce(error);
+      await expect(
+        ListingsPage({
+          params: Promise.resolve({ locale: "en" }),
+          searchParams: Promise.resolve({}),
+        })
+      ).rejects.toBe(error);
+      expect(getPublicListings).toHaveBeenCalledOnce();
+    }
+  );
 
   it.each(["mk", "en"] as const)(
     "keeps route locale %s authoritative and omits URL-controlled backend fields",

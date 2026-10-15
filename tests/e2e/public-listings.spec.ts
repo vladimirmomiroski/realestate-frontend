@@ -13,6 +13,358 @@ const localeCases = [
 ] as const;
 
 for (const { locale, dictionary } of localeCases) {
+  for (const { mode, message, requestId } of [
+    {
+      mode: "validation",
+      message: "validation",
+      requestId: "fixture-validation-trace-id",
+    },
+    {
+      mode: "server",
+      message: "server",
+      requestId: "fixture-server-request-id",
+    },
+    { mode: "http", message: "http", requestId: null },
+    { mode: "invalid-json", message: "malformed", requestId: null },
+    { mode: "malformed", message: "malformed", requestId: null },
+    { mode: "network", message: "network", requestId: null },
+  ] as const) {
+    test(`${locale} presents classified ${mode} failures without fake results`, async ({
+      page,
+      request,
+      context,
+    }) => {
+      const control = "http://localhost:5231/__test/listings-failure";
+      expect(
+        (await request.post(`${control}?lang=${locale}&mode=${mode}`)).ok()
+      ).toBe(true);
+      const browserApiRequests: string[] = [];
+      page.on("request", (request) => {
+        if (new URL(request.url()).port === "5231")
+          browserApiRequests.push(request.url());
+      });
+      try {
+        await page.goto(
+          `/${locale}/listings?q=Family&listingType=Rent&propertyType=House`
+        );
+        const error = page.getByRole("alert", {
+          name: dictionary.listings.failure.title,
+        });
+        await expect(error).toHaveCount(1);
+        await expect(error).toContainText(dictionary.listings.failure[message]);
+        await expect(
+          error.getByRole("button", { name: dictionary.errors.retry })
+        ).toBeVisible();
+        await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+        await expect(page.getByRole("article")).toHaveCount(0);
+        await expect(
+          page.getByRole("region", {
+            name: dictionary.listings.results,
+            exact: true,
+          })
+        ).toHaveCount(0);
+        await expect(
+          page.getByRole("navigation", { name: dictionary.listings.pagination })
+        ).toHaveCount(0);
+        await expect(page.getByRole("searchbox")).toHaveValue("Family");
+        await expect(page.locator("main")).not.toContainText(
+          /Sensitive|private.example|Unusable listing|different-body-trace-id/
+        );
+        if (requestId) {
+          await expect(
+            error.getByText(requestId, { exact: true })
+          ).toBeVisible();
+          await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+          await error
+            .getByRole("button", { name: dictionary.errors.copyRequestId })
+            .click();
+          await expect(page.getByRole("status")).toHaveText(
+            dictionary.errors.requestIdCopied
+          );
+          expect(
+            await page.evaluate(() => navigator.clipboard.readText())
+          ).toBe(requestId);
+        } else {
+          await expect(
+            error.getByText(dictionary.errors.requestIdLabel)
+          ).toHaveCount(0);
+          await expect(
+            error.getByRole("button", { name: dictionary.errors.copyRequestId })
+          ).toHaveCount(0);
+        }
+        for (const width of [320, 360]) {
+          await page.setViewportSize({ width, height: 800 });
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth)
+          ).toBeLessThanOrEqual(width);
+        }
+        expect(browserApiRequests).toEqual([]);
+      } finally {
+        await request.delete(control);
+      }
+    });
+  }
+
+  for (const latestSucceeded of [true, false]) {
+    test(`${locale} latest overlapping clipboard attempt wins (success=${latestSucceeded})`, async ({
+      page,
+      request,
+    }) => {
+      const control = "http://localhost:5231/__test/listings-failure";
+      expect(
+        (await request.post(`${control}?lang=${locale}&mode=server`)).ok()
+      ).toBe(true);
+      try {
+        await page.goto(`/${locale}/listings`);
+        const error = page.getByRole("alert", {
+          name: dictionary.listings.failure.title,
+        });
+        const copy = error.getByRole("button", {
+          name: dictionary.errors.copyRequestId,
+        });
+        await expect(copy).toBeVisible();
+        const attempts = await page.evaluateHandle(() => {
+          const pending: {
+            value: string;
+            resolve: () => void;
+            reject: (reason: Error) => void;
+          }[] = [];
+          Object.defineProperty(navigator.clipboard, "writeText", {
+            configurable: true,
+            value: (value: string) =>
+              new Promise<void>((resolve, reject) => {
+                pending.push({ value, resolve, reject });
+              }),
+          });
+          return pending;
+        });
+        try {
+          await copy.click();
+          await copy.click();
+          expect(
+            await attempts.evaluate((pending) =>
+              pending.map(({ value }) => value)
+            )
+          ).toEqual(["fixture-server-request-id", "fixture-server-request-id"]);
+          await expect(page.getByRole("status")).toHaveCount(0);
+
+          await attempts.evaluate((pending, succeeded) => {
+            const latest = pending[1];
+            if (!latest)
+              throw new Error("Expected the second clipboard attempt");
+            if (succeeded) latest.resolve();
+            else latest.reject(new Error("Latest copy failed"));
+          }, latestSucceeded);
+          const message = latestSucceeded
+            ? dictionary.errors.requestIdCopied
+            : dictionary.errors.requestIdCopyFailed;
+          await expect(page.getByRole("status")).toHaveText(message);
+
+          await attempts.evaluate(async (pending, succeeded) => {
+            const first = pending[0];
+            if (!first) throw new Error("Expected the first clipboard attempt");
+            if (succeeded) first.reject(new Error("Superseded copy failed"));
+            else first.resolve();
+            // Flush the clipboard continuation and React's scheduled update.
+            await new Promise<void>((resolve) =>
+              requestAnimationFrame(() => resolve())
+            );
+          }, latestSucceeded);
+          await expect(page.getByRole("status")).toHaveText(message);
+          await expect(
+            error.getByText("fixture-server-request-id", { exact: true })
+          ).toBeVisible();
+        } finally {
+          await attempts.dispose();
+        }
+      } finally {
+        await request.delete(control);
+      }
+    });
+  }
+
+  test(`${locale} clears stale clipboard feedback when retry changes the support ID`, async ({
+    page,
+    request,
+    context,
+    baseURL,
+  }) => {
+    const control = "http://localhost:5231/__test/listings-failure";
+    expect(
+      (await request.post(`${control}?lang=${locale}&mode=server`)).ok()
+    ).toBe(true);
+    try {
+      const path = `/${locale}/listings?q=Paged&listingType=Rent&propertyType=House&page=2`;
+      await page.goto(path);
+      const error = page.getByRole("alert", {
+        name: dictionary.listings.failure.title,
+      });
+      await expect(
+        error.getByText("fixture-server-request-id", { exact: true })
+      ).toBeVisible();
+      await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+      await error
+        .getByRole("button", { name: dictionary.errors.copyRequestId })
+        .click();
+      await expect(page.getByRole("status")).toHaveText(
+        dictionary.errors.requestIdCopied
+      );
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+        "fixture-server-request-id"
+      );
+
+      expect(
+        (await request.post(`${control}?lang=${locale}&mode=validation`)).ok()
+      ).toBe(true);
+      await error
+        .getByRole("button", { name: dictionary.errors.retry })
+        .click();
+      await expect(
+        error.getByText("fixture-validation-trace-id", { exact: true })
+      ).toBeVisible();
+      await expect(page).toHaveURL(`${baseURL}${path}`);
+      await expect(page.getByRole("status")).toHaveCount(0);
+      await expect(
+        error.getByText("fixture-server-request-id", { exact: true })
+      ).toHaveCount(0);
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+        "fixture-server-request-id"
+      );
+      await error
+        .getByRole("button", { name: dictionary.errors.copyRequestId })
+        .click();
+      await expect(page.getByRole("status")).toHaveText(
+        dictionary.errors.requestIdCopied
+      );
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+        "fixture-validation-trace-id"
+      );
+    } finally {
+      await request.delete(control);
+    }
+  });
+
+  test(`${locale} retries the exact current URL with one fresh server retrieval`, async ({
+    page,
+    request,
+    baseURL,
+  }) => {
+    const control = "http://localhost:5231/__test/listings-failure";
+    expect(
+      (
+        await request.post(`${control}?lang=${locale}&mode=server&transient=1`)
+      ).ok()
+    ).toBe(true);
+    const path = `/${locale}/listings?q=Paged&listingType=Rent&propertyType=House&page=2`;
+    const query = {
+      lang: locale,
+      q: "Paged",
+      listingType: "Rent",
+      propertyType: "House",
+      page: "2",
+      pageSize: "20",
+    };
+    const browserApiRequests: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).port === "5231")
+        browserApiRequests.push(request.url());
+    });
+    try {
+      await page.goto(path);
+      const error = page.getByRole("alert", {
+        name: dictionary.listings.failure.title,
+      });
+      await expect(error).toContainText(dictionary.listings.failure.server);
+      await expect(error.getByText("fixture-server-request-id")).toBeVisible();
+      expect(await (await request.get(control)).json()).toEqual({
+        requests: [query],
+      });
+      await error
+        .getByRole("button", { name: dictionary.errors.retry })
+        .click();
+      await expect(page).toHaveURL(`${baseURL}${path}`);
+      await expect(page.getByRole("article")).toHaveCount(1);
+      await expect(page.getByRole("article")).toContainText(
+        "Paged family house 21"
+      );
+      await expect(error).toHaveCount(0);
+      await expect(
+        page.getByRole("region", {
+          name: dictionary.listings.results,
+          exact: true,
+        })
+      ).toContainText(
+        locale === "en" ? "21 properties found" : "Пронајдени имоти: 21"
+      );
+      await expect(page.getByRole("searchbox")).toHaveValue("Paged");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.listingType })
+      ).toHaveValue("Rent");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.propertyType })
+      ).toHaveValue("House");
+      await expect(
+        page.getByRole("navigation", { name: dictionary.listings.pagination })
+      ).toContainText(
+        dictionary.listings.pageOf
+          .replace("{page}", "2")
+          .replace("{totalPages}", "2")
+      );
+      expect(await (await request.get(control)).json()).toEqual({
+        requests: [query, query],
+      });
+      expect(browserApiRequests).toEqual([]);
+    } finally {
+      await request.delete(control);
+    }
+  });
+
+  test(`${locale} retries a readable correlated failure without JavaScript`, async ({
+    browser,
+    request,
+    baseURL,
+  }) => {
+    const control = "http://localhost:5231/__test/listings-failure";
+    expect(
+      (
+        await request.post(`${control}?lang=${locale}&mode=server&transient=1`)
+      ).ok()
+    ).toBe(true);
+    const context = await browser.newContext({
+      baseURL,
+      javaScriptEnabled: false,
+    });
+    try {
+      const page = await context.newPage();
+      const path = `/${locale}/listings?q=Paged&listingType=Rent&propertyType=House&page=2`;
+      await page.goto(path);
+      const error = page.getByRole("alert", {
+        name: dictionary.listings.failure.title,
+      });
+      await expect(error).toContainText(dictionary.listings.failure.server);
+      await expect(error.getByText("fixture-server-request-id")).toBeVisible();
+      await expect(error.getByRole("button")).toHaveCount(0);
+      await error.getByRole("link", { name: dictionary.errors.retry }).click();
+      await expect(page).toHaveURL(`${baseURL}${path}`);
+      await expect(page.getByRole("article")).toBeVisible();
+      await expect(page.getByRole("article")).toContainText(
+        "Paged family house 21"
+      );
+      expect(
+        await page
+          .getByRole("article")
+          .evaluate((article) => article.closest("[hidden]") === null)
+      ).toBe(true);
+      await expect(error).toHaveCount(0);
+      const { requests } = await (await request.get(control)).json();
+      expect(requests).toHaveLength(2);
+      expect(requests[0]).toEqual(requests[1]);
+    } finally {
+      await context.close();
+      await request.delete(control);
+    }
+  });
+
   test(`${locale} presents a clean empty catalog without reset advice`, async ({
     page,
     request,
