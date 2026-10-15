@@ -344,10 +344,11 @@ only the valid active Chapter 2 state.
 
 ### Loading
 
-`loading.tsx` renders the catalog heading/search geometry and a small set of
-aria-hidden card skeletons, plus one concise localized `role="status"` message. It
-must not simulate unavailable data or animate in reduced-motion mode. The public
-header/footer remain usable while results load.
+Revised Checkpoint 2K uses localized inline pending feedback for enhanced search
+and pagination navigation. It preserves ordinary GET rendering without JavaScript;
+the verified native route-loading incompatibility and skeleton deferral are recorded
+in Checkpoint 2K below. The current catalog and public shell remain usable while
+navigation is pending.
 
 ### Invalid search
 
@@ -670,21 +671,35 @@ has its focused success condition reviewed.
   Chapter 2 filters, and unavailable directions are plain noninteractive text/absent.
 - **Dependency:** 2I.
 
-### Checkpoint 2K — Route loading skeleton
+### Checkpoint 2K — Local pending-navigation feedback (revised)
 
-- **Exact objective:** Add an instant route loading state that mirrors the current
-  search/result/card geometry without false content or motion dependence.
+- **Architecture decision:** The original native `loading.tsx`/catalog-skeleton
+  approach was verified in development and production to break accepted navigation
+  without JavaScript: completed listing HTML arrives hidden in a streamed Suspense
+  container, and JavaScript is required to replace the fallback. A plain Server
+  Component fallback reproduces the issue, so client-context localization is not
+  the cause. Preserve progressive enhancement by omitting the route loading boundary.
+  Defer a full catalog-wide skeleton until a supported architecture is justified.
+- **Exact objective:** Show concise localized inline pending feedback through
+  React `useFormStatus` inside the existing string-action `next/form` and Next.js
+  `useLinkStatus` inside pagination links. Both hooks were verified with held fixture
+  responses in the installed versions. Retrieval, URL parsing, and page metadata
+  remain server-owned; no global navigation coordinator is introduced.
 - **Expected files:**
-  - `src/app/[locale]/(public)/listings/loading.tsx`
-  - `src/features/listings/components/public-listings-skeleton.tsx`
-  - focused semantic tests where useful
-- **Approximate implementation size:** 80–130 lines.
-- **Tests required:** One status announcement; decorative skeleton hidden; existing
-  shell retained; reduced-motion behavior; no layout overflow.
-- **Explicit exclusions:** Global loader, progress bar, artificial delays, and image
-  shimmer dependency.
-- **Completion condition:** Navigation to a delayed fixture page immediately shows a
-  stable catalog-shaped fallback and remains keyboard-safe.
+  - narrow form/link status components in `src/features/listings/components/`
+  - existing search form and pagination composition, dictionaries, and focused tests
+  - test-only response gate and catalog Chromium tests
+- **Approximate implementation size:** Small leaf components and composition changes.
+- **Tests required:** Real pending/completed navigation in both locales; one relevant
+  status announcement; unchanged control names and focus; real destination listings;
+  one retrieval per navigation; no clipping or motion dependence; accepted GET search,
+  filtering, and pagination without JavaScript, including production verification.
+- **Explicit exclusions:** Route-level streaming fallback, catalog-wide skeleton,
+  global loader/coordinator, custom router, timers simulating pending state, artificial
+  production delays, and animation dependencies.
+- **Completion condition:** Supported hooks show truthful pending feedback until the
+  destination commits, and ordinary GET navigation displays final server-rendered
+  listings without JavaScript. Existing controls stay available throughout.
 - **Dependency:** 2J.
 
 ### Checkpoint 2L — Empty and out-of-range result states

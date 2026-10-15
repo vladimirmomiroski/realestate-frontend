@@ -6,6 +6,7 @@ import type { Page } from "@/lib/api/page";
 import type { PublicListingsSearchState } from "../search/public-listings-search";
 import { publicListingsPageUrl } from "../search/public-listings-search";
 import { formatOptionalNumber } from "../utils/listing-formatters";
+import { PublicListingsLinkStatus } from "./public-listings-link-status";
 
 type Pagination = Pick<
   Page<unknown>,
@@ -18,12 +19,12 @@ type PublicListingsPaginationProps = {
   locale: Locale;
   labels: Pick<
     Dictionary["listings"],
-    "pagination" | "previousPage" | "nextPage" | "pageOf"
+    "pagination" | "previousPage" | "nextPage" | "pageOf" | "navigationPending"
   >;
 };
 
 const linkClassName =
-  "text-primary focus-visible:outline-focus-ring inline-flex min-h-11 items-center rounded-md px-3 font-medium underline underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-2";
+  "text-primary focus-visible:outline-focus-ring inline-flex min-h-11 max-w-full flex-wrap items-center gap-x-2 rounded-md px-3 font-medium underline underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-2";
 
 export function PublicListingsPagination({
   pagination,
@@ -54,9 +55,11 @@ export function PublicListingsPagination({
         {hasPreviousPage && (
           <Link
             href={publicListingsPageUrl(locale, search, page - 1)}
+            aria-label={labels.previousPage}
             className={linkClassName}
           >
             {labels.previousPage}
+            <PublicListingsLinkStatus label={labels.navigationPending} />
           </Link>
         )}
         <p
@@ -68,9 +71,11 @@ export function PublicListingsPagination({
         {hasNextPage && (
           <Link
             href={publicListingsPageUrl(locale, search, page + 1)}
+            aria-label={labels.nextPage}
             className={linkClassName}
           >
             {labels.nextPage}
+            <PublicListingsLinkStatus label={labels.navigationPending} />
           </Link>
         )}
       </div>

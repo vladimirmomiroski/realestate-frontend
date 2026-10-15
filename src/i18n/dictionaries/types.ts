@@ -96,6 +96,7 @@ export type Dictionary = {
     nextPage: string;
     page: string;
     pagination: string;
+    navigationPending: string;
     pageOf: string;
     totalResults: string;
     resultCount: {

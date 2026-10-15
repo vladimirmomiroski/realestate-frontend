@@ -105,6 +105,7 @@ export const mk = {
     nextPage: "Следна страница",
     page: "Страница",
     pagination: "Страници со резултати",
+    navigationPending: "Се вчитува…",
     pageOf: "Страница {page} од {totalPages}",
     totalResults: "Вкупно резултати",
     resultCount: {

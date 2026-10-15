@@ -104,6 +104,7 @@ export const en = {
     nextPage: "Next page",
     page: "Page",
     pagination: "Result pages",
+    navigationPending: "Loading…",
     pageOf: "Page {page} of {totalPages}",
     totalResults: "Total results",
     resultCount: {
