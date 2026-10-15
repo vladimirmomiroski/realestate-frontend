@@ -66,7 +66,78 @@ describe("catalog server page URL integration", () => {
     expect(
       screen.getByRole("searchbox", { name: "Keyword or location" })
     ).toHaveValue("");
+    expect(
+      screen.getByRole("heading", { level: 2, name: "No properties available" })
+    ).toBeInTheDocument();
   });
+
+  it.each([
+    {
+      searchParams: { listingType: "Rent" },
+      page: 1,
+      filtered: true,
+      query: { listingType: "Rent" },
+    },
+    {
+      searchParams: { q: " Family ", page: "4" },
+      page: 4,
+      filtered: true,
+      query: { q: "Family", page: 4 },
+    },
+    {
+      searchParams: { propertyType: "Land", page: "4", lang: "mk" },
+      page: 4,
+      filtered: false,
+      query: { page: 4 },
+    },
+  ])(
+    "prioritizes zero total on page $page with filtered=$filtered",
+    async ({ searchParams, page, filtered, query }) => {
+      vi.mocked(getPublicListings).mockResolvedValueOnce({
+        items: [],
+        page,
+        pageSize: 20,
+        totalCount: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: page > 1,
+      });
+      render(
+        await ListingsPage({
+          params: Promise.resolve({ locale: "en" }),
+          searchParams: Promise.resolve(searchParams),
+        })
+      );
+
+      expect(getPublicListings).toHaveBeenCalledExactlyOnceWith({
+        locale: "en",
+        query,
+      });
+      expect(screen.getByRole("region", { name: "Results" })).toHaveTextContent(
+        "0 properties found"
+      );
+      const empty = screen.getByRole("region", {
+        name: filtered ? "No matching properties" : "No properties available",
+      });
+      if (filtered) {
+        expect(empty.querySelector("a")).toHaveAttribute(
+          "href",
+          "/en/listings"
+        );
+      } else {
+        expect(empty.querySelector("a")).toBeNull();
+      }
+      expect(
+        screen.queryByRole("navigation", { name: "Result pages" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("link", { name: "Return to the first page" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: "No results on this page" })
+      ).not.toBeInTheDocument();
+    }
+  );
 
   it("renders the backend total independently of current-page items", async () => {
     vi.mocked(getPublicListings).mockResolvedValueOnce({
@@ -92,6 +163,66 @@ describe("catalog server page URL integration", () => {
     const results = screen.getByRole("region", { name: "Results" });
     expect(results).toHaveTextContent("24 properties found");
     expect(results.querySelectorAll("article")).toHaveLength(0);
+    expect(
+      screen.getByRole("heading", { level: 2, name: "No results on this page" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Return to the first page" })
+    ).toHaveAttribute("href", "/en/listings");
+    expect(
+      screen.queryByRole("navigation", { name: "Result pages" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("preserves normalized filters for empty-page recovery without another retrieval", async () => {
+    vi.mocked(getPublicListings).mockResolvedValueOnce({
+      items: [],
+      page: 5,
+      pageSize: 20,
+      totalCount: 21,
+      totalPages: 2,
+      hasNextPage: false,
+      hasPreviousPage: true,
+    });
+    render(
+      await ListingsPage({
+        params: Promise.resolve({ locale: "en" }),
+        searchParams: Promise.resolve({
+          q: " Paged ",
+          listingType: "Rent",
+          propertyType: "House",
+          page: "5",
+          lang: "mk",
+          pageSize: "99",
+          sort: "oldest",
+        }),
+      })
+    );
+
+    expect(getPublicListings).toHaveBeenCalledExactlyOnceWith({
+      locale: "en",
+      query: {
+        q: "Paged",
+        listingType: "Rent",
+        propertyType: "House",
+        page: 5,
+      },
+    });
+    expect(screen.getByRole("region", { name: "Results" })).toHaveTextContent(
+      "21 properties found"
+    );
+    expect(
+      screen.getByRole("link", { name: "Return to the first page" })
+    ).toHaveAttribute(
+      "href",
+      "/en/listings?listingType=Rent&propertyType=House&q=Paged"
+    );
+    expect(
+      screen.queryByRole("heading", { name: "No matching properties" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "No properties available" })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("navigation", { name: "Result pages" })
     ).not.toBeInTheDocument();
@@ -245,6 +376,9 @@ describe("catalog server page URL integration", () => {
         screen.getByRole("searchbox", { name: "Keyword or location" })
       ).toHaveAttribute("aria-invalid", "true");
       expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { level: 2 })
+      ).not.toBeInTheDocument();
     }
   );
 });

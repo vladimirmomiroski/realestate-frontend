@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getPublicListings } from "@/features/listings/api/get-public-listings.server";
+import { PublicListingsEmptyState } from "@/features/listings/components/public-listings-empty-state";
 import { PublicListingsPagination } from "@/features/listings/components/public-listings-pagination";
 import { PublicListingsResults } from "@/features/listings/components/public-listings-results";
 import { PublicListingsSearchForm } from "@/features/listings/components/public-listings-search-form";
@@ -64,14 +65,22 @@ export default async function ListingsPage({
             locale={locale}
             dictionary={dictionary}
           />
-          {search.kind === "valid" && (
-            <PublicListingsPagination
-              pagination={listings}
-              search={search}
-              locale={locale}
-              labels={dictionary.listings}
-            />
-          )}
+          {search.kind === "valid" &&
+            (listings.items.length === 0 ? (
+              <PublicListingsEmptyState
+                totalCount={listings.totalCount}
+                search={search}
+                locale={locale}
+                labels={dictionary.listings}
+              />
+            ) : (
+              <PublicListingsPagination
+                pagination={listings}
+                search={search}
+                locale={locale}
+                labels={dictionary.listings}
+              />
+            ))}
         </>
       )}
     </div>

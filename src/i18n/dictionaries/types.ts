@@ -68,6 +68,11 @@ export type Dictionary = {
     results: string;
     emptyTitle: string;
     emptyDescription: string;
+    catalogEmptyTitle: string;
+    catalogEmptyDescription: string;
+    emptyPageTitle: string;
+    emptyPageDescription: string;
+    firstPage: string;
     listingType: string;
     propertyType: string;
     allListingTypes: string;

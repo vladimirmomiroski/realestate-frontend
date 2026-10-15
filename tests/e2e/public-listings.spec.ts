@@ -13,6 +13,229 @@ const localeCases = [
 ] as const;
 
 for (const { locale, dictionary } of localeCases) {
+  test(`${locale} presents a clean empty catalog without reset advice`, async ({
+    page,
+    request,
+  }) => {
+    const controlUrl = "http://localhost:5231/__test/catalog-empty";
+    expect((await request.post(`${controlUrl}?lang=${locale}`)).ok()).toBe(
+      true
+    );
+    try {
+      const response = await page.goto(`/${locale}/listings`);
+      expect(response?.status()).toBe(200);
+      const empty = page.getByRole("region", {
+        name: dictionary.listings.catalogEmptyTitle,
+      });
+      await expect(empty).toContainText(
+        dictionary.listings.catalogEmptyDescription
+      );
+      await expect(empty.getByRole("link")).toHaveCount(0);
+      await expect(
+        page.getByRole("region", {
+          name: dictionary.listings.results,
+          exact: true,
+        })
+      ).toContainText(
+        locale === "en" ? "0 properties found" : "Пронајдени имоти: 0"
+      );
+      await expect(page.getByRole("article")).toHaveCount(0);
+      await expect(
+        page.getByRole("navigation", { name: dictionary.listings.pagination })
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("link", { name: dictionary.listings.clearSearch })
+      ).toHaveCount(0);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+      await expect(page.getByRole("status")).toHaveCount(0);
+      for (const theme of [dictionary.theme.light, dictionary.theme.dark]) {
+        await page.getByRole("button", { name: theme, exact: true }).click();
+        for (const width of [320, 360]) {
+          await page.setViewportSize({ width, height: 800 });
+          await expect(empty).toBeVisible();
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth)
+          ).toBeLessThanOrEqual(width);
+        }
+      }
+      await page
+        .getByRole("searchbox", { name: dictionary.listings.searchLabel })
+        .fill("Family");
+      await page
+        .getByRole("button", { name: dictionary.listings.search, exact: true })
+        .click();
+      const filtered = page.getByRole("region", {
+        name: dictionary.listings.emptyTitle,
+      });
+      await expect(filtered).toBeVisible();
+      await filtered
+        .getByRole("link", { name: dictionary.listings.clearSearch })
+        .click();
+      await expect(empty).toBeVisible();
+    } finally {
+      await request.delete(controlUrl);
+    }
+  });
+
+  test(`${locale} recovers from filtered zero results and a positive-total empty page`, async ({
+    page,
+    baseURL,
+  }) => {
+    const browserApiRequests: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).port === "5231")
+        browserApiRequests.push(request.url());
+    });
+    const zeroResponse = await page.goto(
+      `/${locale}/listings?listingType=Rent&propertyType=Apartment&page=4`
+    );
+    expect(zeroResponse?.status()).toBe(200);
+    const zero = page.getByRole("region", {
+      name: dictionary.listings.emptyTitle,
+    });
+    await expect(zero).toContainText(dictionary.listings.emptyDescription);
+    await expect(
+      page.getByRole("region", {
+        name: dictionary.listings.results,
+        exact: true,
+      })
+    ).toContainText(
+      locale === "en" ? "0 properties found" : "Пронајдени имоти: 0"
+    );
+    await expect(
+      page.getByRole("navigation", { name: dictionary.listings.pagination })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: dictionary.listings.firstPage })
+    ).toHaveCount(0);
+    await expect(
+      zero.getByRole("link", { name: dictionary.listings.clearSearch })
+    ).toHaveAttribute("href", `/${locale}/listings`);
+    await zero
+      .getByRole("link", { name: dictionary.listings.clearSearch })
+      .click();
+    await expect(page).toHaveURL(`${baseURL}/${locale}/listings`);
+    await expect(page.getByRole("article")).toHaveCount(4);
+    await expect(page.getByRole("article").first()).toContainText(
+      "Стан во Центар"
+    );
+
+    const outPath = `/${locale}/listings?q=Paged&listingType=Rent&propertyType=House&page=5&lang=${locale === "en" ? "mk" : "en"}&pageSize=99&sort=oldest`;
+    const response = await page.goto(outPath);
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveURL(`${baseURL}${outPath}`);
+    const emptyPage = page.getByRole("region", {
+      name: dictionary.listings.emptyPageTitle,
+    });
+    await expect(emptyPage).toContainText(
+      dictionary.listings.emptyPageDescription
+    );
+    await expect(
+      page.getByRole("region", {
+        name: dictionary.listings.results,
+        exact: true,
+      })
+    ).toContainText(
+      locale === "en" ? "21 properties found" : "Пронајдени имоти: 21"
+    );
+    await expect(page.getByRole("article")).toHaveCount(0);
+    await expect(
+      page.getByRole("navigation", { name: dictionary.listings.pagination })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: dictionary.listings.catalogEmptyTitle })
+    ).toHaveCount(0);
+    await expect(zero).toHaveCount(0);
+    const recovery = emptyPage.getByRole("link", {
+      name: dictionary.listings.firstPage,
+    });
+    const firstPath = `/${locale}/listings?listingType=Rent&propertyType=House&q=Paged`;
+    await expect(recovery).toHaveAttribute("href", firstPath);
+    for (const width of [320, 360]) {
+      await page.setViewportSize({ width, height: 800 });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth)
+      ).toBeLessThanOrEqual(width);
+    }
+    await recovery.click();
+    await expect(page).toHaveURL(`${baseURL}${firstPath}`);
+    await expect(page.getByRole("article")).toHaveCount(20);
+    await expect(page.getByRole("article").first()).toContainText(
+      "Paged family house 01"
+    );
+    await expect(page.getByRole("article").last()).toContainText(
+      "Paged family house 20"
+    );
+    await expect(page.getByRole("searchbox")).toHaveValue("Paged");
+    await expect(
+      page.getByRole("combobox", { name: dictionary.listings.listingType })
+    ).toHaveValue("Rent");
+    await expect(
+      page.getByRole("combobox", { name: dictionary.listings.propertyType })
+    ).toHaveValue("House");
+    expect(browserApiRequests).toEqual([]);
+  });
+
+  test(`${locale} follows empty-result recovery links without JavaScript`, async ({
+    browser,
+    baseURL,
+  }) => {
+    const context = await browser.newContext({
+      baseURL,
+      javaScriptEnabled: false,
+    });
+    try {
+      const page = await context.newPage();
+      await page.goto(
+        `/${locale}/listings?listingType=Rent&propertyType=Apartment&page=3`
+      );
+      const zero = page.getByRole("region", {
+        name: dictionary.listings.emptyTitle,
+      });
+      await expect(zero).toBeVisible();
+      await zero
+        .getByRole("link", { name: dictionary.listings.clearSearch })
+        .click();
+      await expect(page).toHaveURL(`${baseURL}/${locale}/listings`);
+      await expect(page.getByRole("article")).toHaveCount(4);
+      await page.goto(
+        `/${locale}/listings?q=Family&listingType=Rent&propertyType=House&page=5`
+      );
+      const emptyPage = page.getByRole("region", {
+        name: dictionary.listings.emptyPageTitle,
+      });
+      await expect(emptyPage).toBeVisible();
+      await expect(page.getByRole("article")).toHaveCount(0);
+      await expect(
+        page.getByRole("navigation", { name: dictionary.listings.pagination })
+      ).toHaveCount(0);
+      await emptyPage
+        .getByRole("link", { name: dictionary.listings.firstPage })
+        .click();
+      await expect(page).toHaveURL(
+        `${baseURL}/${locale}/listings?listingType=Rent&propertyType=House&q=Family`
+      );
+      await expect(page.getByRole("article")).toHaveCount(1);
+      await expect(page.getByRole("article")).toContainText("Family house");
+      await expect(page.getByRole("article")).toBeVisible();
+      expect(
+        await page
+          .getByRole("article")
+          .evaluate((article) => article.closest("[hidden]") === null)
+      ).toBe(true);
+      await expect(page.getByRole("status")).toHaveCount(0);
+      await expect(page.getByRole("searchbox")).toHaveValue("Family");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.listingType })
+      ).toHaveValue("Rent");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.propertyType })
+      ).toHaveValue("House");
+    } finally {
+      await context.close();
+    }
+  });
+
   test(`${locale} shows pagination pending feedback until results complete`, async ({
     page,
     request,
@@ -647,7 +870,7 @@ test("pagination omits navigation for single and out-of-range pages", async ({
 
   await page.goto("/en/listings?q=Paged&page=3");
   await expect(
-    page.getByRole("region", { name: en.listings.results })
+    page.getByRole("region", { name: en.listings.results, exact: true })
   ).toContainText("21 properties found");
   await expect(page.getByRole("article")).toHaveCount(0);
   await expect(
