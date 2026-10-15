@@ -100,6 +100,7 @@ const previewPng = Buffer.from(
 let listingsGate = null;
 let listingsRequests = 0;
 let emptyCatalogLocale = null;
+let listingsFailure = null;
 
 function releaseListingsGate() {
   if (listingsGate) {
@@ -111,6 +112,39 @@ function releaseListingsGate() {
 
 createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost:5231");
+  if (url.pathname === "/__test/listings-failure") {
+    if (
+      request.method === "POST" &&
+      ["mk", "en"].includes(url.searchParams.get("lang")) &&
+      [
+        "validation",
+        "server",
+        "http",
+        "invalid-json",
+        "malformed",
+        "network",
+      ].includes(url.searchParams.get("mode"))
+    ) {
+      listingsFailure = {
+        lang: url.searchParams.get("lang"),
+        mode: url.searchParams.get("mode"),
+        remaining: url.searchParams.get("transient") === "1" ? 1 : null,
+        requests: [],
+      };
+      response.writeHead(204).end();
+    } else if (request.method === "DELETE") {
+      listingsFailure = null;
+      response.writeHead(204).end();
+    } else if (request.method === "GET") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({ requests: listingsFailure?.requests ?? [] })
+      );
+    } else {
+      response.writeHead(400).end();
+    }
+    return;
+  }
   if (url.pathname === "/__test/catalog-empty") {
     if (
       request.method === "POST" &&
@@ -219,6 +253,58 @@ createServer(async (request, response) => {
   ) {
     listingsGate.pending += 1;
     await listingsGate.ready;
+  }
+
+  if (listingsFailure?.lang === searchParams.get("lang")) {
+    listingsFailure.requests.push(Object.fromEntries(searchParams));
+    if (listingsFailure.remaining === null || listingsFailure.remaining > 0) {
+      if (listingsFailure.remaining !== null) listingsFailure.remaining -= 1;
+      const { mode } = listingsFailure;
+      if (mode === "network") {
+        response.destroy();
+      } else if (mode === "http") {
+        response.writeHead(502, {
+          "Content-Type": "text/plain",
+          "Cache-Control": "no-store",
+        });
+        response.end("Sensitive upstream failure at https://private.example");
+      } else if (mode === "malformed" || mode === "invalid-json") {
+        response.writeHead(200, {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        });
+        response.end(
+          mode === "malformed"
+            ? JSON.stringify({ items: [{ title: "Unusable listing" }] })
+            : "{invalid-json"
+        );
+      } else {
+        const validation = mode === "validation";
+        const status = validation ? 400 : 500;
+        response.writeHead(status, {
+          "Content-Type": "application/problem+json",
+          "Cache-Control": "no-store",
+          ...(validation
+            ? {}
+            : { "X-Request-ID": "fixture-server-request-id" }),
+        });
+        response.end(
+          JSON.stringify({
+            status,
+            code: validation ? "validation.failed" : "server.unexpected",
+            title: "Sensitive backend title",
+            detail: "Sensitive detail at https://private.example",
+            traceId: validation
+              ? "fixture-validation-trace-id"
+              : "different-body-trace-id",
+            ...(validation
+              ? { errors: { q: ["Sensitive validation detail"] } }
+              : {}),
+          })
+        );
+      }
+      return;
+    }
   }
 
   response.writeHead(200, {

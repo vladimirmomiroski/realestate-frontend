@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 
+import { RefreshErrorState } from "@/components/feedback/refresh-error-state";
 import { getPublicListings } from "@/features/listings/api/get-public-listings.server";
 import { PublicListingsEmptyState } from "@/features/listings/components/public-listings-empty-state";
 import { PublicListingsPagination } from "@/features/listings/components/public-listings-pagination";
 import { PublicListingsResults } from "@/features/listings/components/public-listings-results";
 import { PublicListingsSearchForm } from "@/features/listings/components/public-listings-search-form";
+import { publicListingsError } from "@/features/listings/model/public-listings-error";
 import {
   parsePublicListingsSearchParams,
   toPublicListingsQuery,
@@ -31,13 +33,19 @@ export default async function ListingsPage({
 
   const search = parsePublicListingsSearchParams(await searchParams);
   const dictionary = await getDictionary(locale);
-  const listings =
-    search.kind === "valid"
-      ? await getPublicListings({
-          locale,
-          query: toPublicListingsQuery(search),
-        })
-      : null;
+  let listings = null;
+  let failure = null;
+  if (search.kind === "valid") {
+    try {
+      listings = await getPublicListings({
+        locale,
+        query: toPublicListingsQuery(search),
+      });
+    } catch (error) {
+      failure = publicListingsError(error, dictionary.listings.failure);
+      if (!failure) throw error;
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
@@ -57,6 +65,14 @@ export default async function ListingsPage({
         search={search}
         labels={dictionary.listings}
       />
+      {failure && (
+        <RefreshErrorState
+          title={dictionary.listings.failure.title}
+          description={failure.description}
+          requestId={failure.requestId}
+          labels={dictionary.errors}
+        />
+      )}
       {listings && (
         <>
           <PublicListingsResults

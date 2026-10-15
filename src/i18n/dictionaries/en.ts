@@ -56,6 +56,9 @@ export const en = {
     retry: "Try again",
     requestIdLabel: "Support ID",
     copyRequestId: "Copy support ID",
+    requestIdCopied: "Support ID copied.",
+    requestIdCopyFailed:
+      "Unable to copy. Select and copy the support ID above.",
     notFoundTitle: "Page not found",
     notFoundDescription: "The page you requested could not be found.",
     backHome: "Back to home",
@@ -69,6 +72,16 @@ export const en = {
   },
 
   listings: {
+    failure: {
+      title: "Unable to load properties",
+      validation:
+        "The search could not be processed. Please try again or change your search.",
+      server: "The server encountered a problem. Please try again.",
+      http: "Properties could not be loaded. Please try again.",
+      malformed:
+        "The returned listing data could not be displayed. Please try again.",
+      network: "The connection could not be completed. Please try again.",
+    },
     title: "Listings",
     subtitle: "Browse homes for sale and rent across North Macedonia.",
     filters: "Filters",
