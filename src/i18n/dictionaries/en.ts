@@ -103,6 +103,8 @@ export const en = {
     previousPage: "Previous page",
     nextPage: "Next page",
     page: "Page",
+    pagination: "Result pages",
+    pageOf: "Page {page} of {totalPages}",
     totalResults: "Total results",
     resultCount: {
       zero: "0 properties found",

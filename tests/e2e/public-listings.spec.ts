@@ -343,6 +343,132 @@ test("catalog grid reflows in backend order without clipping long content", asyn
   }
 });
 
+test("previous and next preserve filtered catalog state and backend page identities", async ({
+  page,
+  baseURL,
+}) => {
+  const browserApiRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).port === "5231") {
+      browserApiRequests.push(request.url());
+    }
+  });
+
+  const firstUrl = `${baseURL}/en/listings?q=Paged&listingType=Rent&propertyType=House`;
+  const canonicalFirstUrl = `${baseURL}/en/listings?listingType=Rent&propertyType=House&q=Paged`;
+  await page.goto(firstUrl);
+  const cards = page
+    .getByRole("region", { name: en.listings.results })
+    .getByRole("article");
+  const pagination = page.getByRole("navigation", {
+    name: en.listings.pagination,
+  });
+  await expect(cards).toHaveCount(20);
+  await expect(cards.first()).toContainText("Paged family house 01");
+  await expect(cards.last()).toContainText("Paged family house 20");
+  await expect(
+    page.getByRole("region", { name: en.listings.results })
+  ).toContainText("21 properties found");
+  await expect(pagination).toContainText("Page 1 of 2");
+  await expect(
+    pagination.getByRole("link", { name: en.listings.previousPage })
+  ).toHaveCount(0);
+
+  await pagination.getByRole("link", { name: en.listings.nextPage }).click();
+  await expect(page).toHaveURL(/page=2/);
+  const secondUrl = new URL(page.url());
+  expect(secondUrl.pathname).toBe("/en/listings");
+  expect(secondUrl.searchParams.get("q")).toBe("Paged");
+  expect(secondUrl.searchParams.get("listingType")).toBe("Rent");
+  expect(secondUrl.searchParams.get("propertyType")).toBe("House");
+  expect(secondUrl.searchParams.getAll("page")).toEqual(["2"]);
+  expect(secondUrl.searchParams.has("pageSize")).toBe(false);
+  expect(secondUrl.searchParams.has("lang")).toBe(false);
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toContainText("Paged family house 21");
+  await expect(pagination).toContainText("Page 2 of 2");
+  await expect(
+    pagination.getByRole("link", { name: en.listings.nextPage })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("searchbox", { name: en.listings.searchLabel })
+  ).toHaveValue("Paged");
+  await expect(
+    page.getByRole("combobox", { name: en.listings.listingType })
+  ).toHaveValue("Rent");
+  await expect(
+    page.getByRole("combobox", { name: en.listings.propertyType })
+  ).toHaveValue("House");
+
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 800 });
+    await expect(
+      pagination.getByRole("link", { name: en.listings.previousPage })
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth)
+    ).toBeLessThanOrEqual(width);
+  }
+
+  await pagination
+    .getByRole("link", { name: en.listings.previousPage })
+    .click();
+  await expect(page).toHaveURL(canonicalFirstUrl);
+  await expect(cards).toHaveCount(20);
+  await expect(cards.first()).toContainText("Paged family house 01");
+  await page.goBack();
+  await expect(page).toHaveURL(secondUrl.toString());
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toContainText("Paged family house 21");
+  expect(browserApiRequests).toEqual([]);
+});
+
+test("pagination omits navigation for single and out-of-range pages", async ({
+  page,
+}) => {
+  await page.goto("/en/listings");
+  await expect(
+    page.getByRole("navigation", { name: en.listings.pagination })
+  ).toHaveCount(0);
+
+  await page.goto("/en/listings?q=Paged&page=3");
+  await expect(
+    page.getByRole("region", { name: en.listings.results })
+  ).toContainText("21 properties found");
+  await expect(page.getByRole("article")).toHaveCount(0);
+  await expect(
+    page.getByRole("navigation", { name: en.listings.pagination })
+  ).toHaveCount(0);
+});
+
+test("pagination links navigate without JavaScript", async ({
+  browser,
+  baseURL,
+}) => {
+  const context = await browser.newContext({
+    baseURL,
+    javaScriptEnabled: false,
+  });
+
+  try {
+    const page = await context.newPage();
+    await page.goto("/mk/listings?q=Paged&listingType=Rent&propertyType=House");
+    const pagination = page.getByRole("navigation", {
+      name: mk.listings.pagination,
+    });
+    await expect(pagination).toContainText("Страница 1 од 2");
+    await pagination.getByRole("link", { name: mk.listings.nextPage }).click();
+    await expect(page).toHaveURL(/\/mk\/listings\?.*page=2/);
+    await expect(page.getByRole("article")).toHaveCount(1);
+    await expect(page.getByRole("article")).toContainText(
+      "Paged family house 21"
+    );
+    await expect(pagination).toContainText("Страница 2 од 2");
+  } finally {
+    await context.close();
+  }
+});
+
 test("invalid direct keyword shows feedback and Enter submission resets page", async ({
   page,
 }) => {

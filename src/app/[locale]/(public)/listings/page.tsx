@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getPublicListings } from "@/features/listings/api/get-public-listings.server";
+import { PublicListingsPagination } from "@/features/listings/components/public-listings-pagination";
 import { PublicListingsResults } from "@/features/listings/components/public-listings-results";
 import { PublicListingsSearchForm } from "@/features/listings/components/public-listings-search-form";
 import {
@@ -56,12 +57,22 @@ export default async function ListingsPage({
         labels={dictionary.listings}
       />
       {listings && (
-        <PublicListingsResults
-          items={listings.items}
-          totalCount={listings.totalCount}
-          locale={locale}
-          dictionary={dictionary}
-        />
+        <>
+          <PublicListingsResults
+            items={listings.items}
+            totalCount={listings.totalCount}
+            locale={locale}
+            dictionary={dictionary}
+          />
+          {search.kind === "valid" && (
+            <PublicListingsPagination
+              pagination={listings}
+              search={search}
+              locale={locale}
+              labels={dictionary.listings}
+            />
+          )}
+        </>
       )}
     </div>
   );

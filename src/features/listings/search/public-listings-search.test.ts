@@ -175,6 +175,26 @@ describe("catalog URLs", () => {
     ).toBe("/en/listings?listingType=Rent&q=Skopje");
   });
 
+  it("uses canonical first and second page URLs without leaking unsupported state", () => {
+    expect(publicListingsPageUrl("en", validSearch(), 2)).toBe(
+      "/en/listings?page=2"
+    );
+
+    const state = validSearch({
+      q: " Family ",
+      listingType: ["Sale", "Rent"],
+      propertyType: "Commercial",
+      lang: "mk",
+      pageSize: "99",
+      sort: "oldest",
+      page: "3",
+    });
+    expect(publicListingsPageUrl("en", state, 2)).toBe(
+      "/en/listings?page=2&q=Family"
+    );
+    expect(publicListingsPageUrl("mk", state, 1)).toBe("/mk/listings?q=Family");
+  });
+
   it("does not construct URLs from invalid keyword or page values", () => {
     expect(() => publicListingsFilterUrl("en", { q: "x" })).toThrow(RangeError);
     expect(() => publicListingsPageUrl("en", validSearch(), 2.5)).toThrow(

@@ -104,6 +104,8 @@ export const mk = {
     previousPage: "Претходна страница",
     nextPage: "Следна страница",
     page: "Страница",
+    pagination: "Страници со резултати",
+    pageOf: "Страница {page} од {totalPages}",
     totalResults: "Вкупно резултати",
     resultCount: {
       zero: "Пронајдени имоти: 0",
