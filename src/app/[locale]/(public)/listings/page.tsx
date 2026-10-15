@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getPublicListings } from "@/features/listings/api/get-public-listings.server";
-import { PublicListingCardView } from "@/features/listings/components/public-listing-card";
+import { PublicListingsResults } from "@/features/listings/components/public-listings-results";
 import { PublicListingsSearchForm } from "@/features/listings/components/public-listings-search-form";
 import {
   parsePublicListingsSearchParams,
@@ -56,21 +56,12 @@ export default async function ListingsPage({
         labels={dictionary.listings}
       />
       {listings && (
-        <section
-          aria-label={dictionary.listings.results}
-          className="mt-10 max-w-4xl"
-        >
-          <div className="space-y-5">
-            {listings.items.map((listing) => (
-              <PublicListingCardView
-                key={listing.id}
-                listing={listing}
-                locale={locale}
-                dictionary={dictionary}
-              />
-            ))}
-          </div>
-        </section>
+        <PublicListingsResults
+          items={listings.items}
+          totalCount={listings.totalCount}
+          locale={locale}
+          dictionary={dictionary}
+        />
       )}
     </div>
   );

@@ -68,6 +68,32 @@ describe("catalog server page URL integration", () => {
     ).toHaveValue("");
   });
 
+  it("renders the backend total independently of current-page items", async () => {
+    vi.mocked(getPublicListings).mockResolvedValueOnce({
+      items: [],
+      page: 2,
+      pageSize: 20,
+      totalCount: 24,
+      totalPages: 2,
+      hasNextPage: false,
+      hasPreviousPage: true,
+    });
+    render(
+      await ListingsPage({
+        params: Promise.resolve({ locale: "en" }),
+        searchParams: Promise.resolve({ page: "2" }),
+      })
+    );
+
+    expect(getPublicListings).toHaveBeenCalledExactlyOnceWith({
+      locale: "en",
+      query: { page: 2 },
+    });
+    const results = screen.getByRole("region", { name: "Results" });
+    expect(results).toHaveTextContent("24 properties found");
+    expect(results.querySelectorAll("article")).toHaveLength(0);
+  });
+
   it("passes normalized selections to the form and server query", async () => {
     const page = await ListingsPage({
       params: Promise.resolve({ locale: "en" }),

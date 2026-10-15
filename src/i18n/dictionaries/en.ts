@@ -104,6 +104,11 @@ export const en = {
     nextPage: "Next page",
     page: "Page",
     totalResults: "Total results",
+    resultCount: {
+      zero: "0 properties found",
+      one: "1 property found",
+      many: "{count} properties found",
+    },
     notSpecified: "Not specified",
     imageUnavailable: "Image unavailable",
     listingTypes: {

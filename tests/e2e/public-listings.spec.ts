@@ -41,6 +41,12 @@ for (const { locale, dictionary } of localeCases) {
     });
     const cards = results.getByRole("article");
     await expect(cards).toHaveCount(4);
+    await expect(results).toContainText(
+      locale === "en" ? "4 properties found" : "Пронајдени имоти: 4"
+    );
+    await expect(cards.nth(1)).toContainText("Family house");
+    await expect(cards.nth(2)).toContainText("Office by the square");
+    await expect(cards.nth(3)).toContainText("Градежно земјиште");
 
     await expect(cards.nth(0)).toContainText("Стан во Центар");
     const preview = cards.nth(0).locator("img");
@@ -201,6 +207,11 @@ for (const { locale, dictionary } of localeCases) {
     await expect(propertyType).toHaveValue("House");
     await expect(page.getByRole("article")).toHaveCount(1);
     await expect(page.getByRole("article")).toContainText("Family house");
+    await expect(
+      page.getByRole("region", { name: dictionary.listings.results })
+    ).toContainText(
+      locale === "en" ? "1 property found" : "Пронајден е 1 имот"
+    );
     expect(browserApiRequests).toEqual([]);
 
     await page.getByRole("link", { name: dictionary.listings.reset }).click();
@@ -256,6 +267,11 @@ for (const { locale, dictionary } of localeCases) {
       page.getByRole("region", { name: dictionary.listings.results })
     ).toHaveCount(1);
     await expect(page.getByRole("article")).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: dictionary.listings.results })
+    ).toContainText(
+      locale === "en" ? "0 properties found" : "Пронајдени имоти: 0"
+    );
     expect(browserApiRequests).toEqual([]);
 
     await page.setViewportSize({ width: 360, height: 800 });
@@ -267,6 +283,65 @@ for (const { locale, dictionary } of localeCases) {
     ).toBeLessThanOrEqual(360);
   });
 }
+
+test("catalog grid reflows in backend order without clipping long content", async ({
+  page,
+}) => {
+  await page.goto("/en/listings");
+  const cards = page
+    .getByRole("region", { name: en.listings.results })
+    .getByRole("article");
+  await expect(cards).toHaveCount(4);
+
+  const longText = "Averylonglistingword".repeat(8);
+  await cards
+    .first()
+    .locator("h2")
+    .evaluate((heading, value) => {
+      heading.textContent = value;
+    }, longText);
+  await cards
+    .first()
+    .locator("[lang] p")
+    .evaluate((location, value) => {
+      location.textContent = value;
+    }, longText);
+
+  for (const [width, columns] of [
+    [320, 1],
+    [360, 1],
+    [768, 2],
+    [1280, 3],
+  ] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    const boxes = await Promise.all(
+      [0, 1, 2, 3].map((index) => cards.nth(index).boundingBox())
+    );
+    expect(boxes.every(Boolean)).toBe(true);
+    expect(
+      new Set(boxes.slice(0, columns).map((box) => Math.round(box!.x))).size
+    ).toBe(columns);
+    expect(
+      new Set(boxes.slice(0, columns).map((box) => Math.round(box!.y))).size
+    ).toBe(1);
+    expect(Math.round(boxes[columns]!.x)).toBe(Math.round(boxes[0]!.x));
+    expect(boxes[columns]!.y).toBeGreaterThan(boxes[0]!.y);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth)
+    ).toBeLessThanOrEqual(width);
+    expect(
+      await cards.evaluateAll((articles) =>
+        articles.every(
+          (article) => article.scrollWidth <= article.clientWidth + 1
+        )
+      )
+    ).toBe(true);
+    const media = cards.first().locator('div[class*="aspect-"]');
+    const frame = await media.boundingBox();
+    expect(frame).not.toBeNull();
+    expect(frame!.width / frame!.height).toBeCloseTo(4 / 3, 1);
+  }
+});
 
 test("invalid direct keyword shows feedback and Enter submission resets page", async ({
   page,

@@ -36,22 +36,27 @@ export function PublicListingCardView({
   return (
     <article
       aria-labelledby={titleId}
-      className="border-border bg-surface rounded-lg border p-5 shadow-sm sm:grid sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:gap-6 sm:p-6"
+      className="border-border bg-surface min-w-0 rounded-lg border p-5 shadow-sm sm:p-6"
     >
       <PublicListingMedia
         src={mediaUrl}
         unavailableLabel={dictionary.listings.imageUnavailable}
       />
-      <div className="mt-5 min-w-0 sm:mt-0">
+      <div className="mt-5 min-w-0">
         <p className="text-primary text-sm font-medium">
           {getListingTypeLabel(listing.listingType, dictionary)} ·{" "}
           {getPropertyTypeLabel(listing.propertyType, dictionary)}
         </p>
         <div lang={listing.languageCode} className="mt-3">
-          <h2 id={titleId} className="text-xl font-semibold text-balance">
+          <h2
+            id={titleId}
+            className="text-xl font-semibold text-balance break-words"
+          >
             {listing.title}
           </h2>
-          <p className="text-on-surface-muted mt-2 leading-6">{location}</p>
+          <p className="text-on-surface-muted mt-2 leading-6 break-words">
+            {location}
+          </p>
         </div>
         <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-4">
           <div>

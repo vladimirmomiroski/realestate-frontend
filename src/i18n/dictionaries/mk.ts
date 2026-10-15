@@ -105,6 +105,11 @@ export const mk = {
     nextPage: "Следна страница",
     page: "Страница",
     totalResults: "Вкупно резултати",
+    resultCount: {
+      zero: "Пронајдени имоти: 0",
+      one: "Пронајден е 1 имот",
+      many: "Пронајдени имоти: {count}",
+    },
     notSpecified: "Не е наведено",
     imageUnavailable: "Сликата не е достапна",
     listingTypes: {

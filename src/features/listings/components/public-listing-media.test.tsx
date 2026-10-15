@@ -40,7 +40,7 @@ describe("PublicListingMedia", () => {
     expect(image).toHaveAttribute("src", src);
     expect(image).toHaveAttribute(
       "data-sizes",
-      "(max-width: 639px) 90vw, 224px"
+      "(max-width: 767px) 90vw, (max-width: 1279px) 45vw, 30vw"
     );
     expect(image).toHaveClass("object-cover");
     expect(image.parentElement).toHaveClass("aspect-[4/3]");

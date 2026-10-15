@@ -22,7 +22,7 @@ export function PublicListingMedia({
           src={src}
           alt=""
           fill
-          sizes="(max-width: 639px) 90vw, 224px"
+          sizes="(max-width: 767px) 90vw, (max-width: 1279px) 45vw, 30vw"
           className="object-cover"
           onError={() => setFailedSrc(src)}
         />
