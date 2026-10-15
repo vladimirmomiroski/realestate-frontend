@@ -13,6 +13,220 @@ const localeCases = [
 ] as const;
 
 for (const { locale, dictionary } of localeCases) {
+  test(`${locale} shows pagination pending feedback until results complete`, async ({
+    page,
+    request,
+  }) => {
+    const gateUrl = "http://localhost:5231/__test/listings-gate";
+    const browserApiRequests: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).port === "5231")
+        browserApiRequests.push(request.url());
+    });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(
+      `/${locale}/listings?q=Paged&listingType=Rent&propertyType=House`
+    );
+    await expect(page.getByRole("article")).toHaveCount(20);
+    expect((await request.post(`${gateUrl}?lang=${locale}&page=2`)).ok()).toBe(
+      true
+    );
+    try {
+      const navigation = page.getByRole("navigation", {
+        name: dictionary.listings.pagination,
+      });
+      const next = navigation.getByRole("link", {
+        name: dictionary.listings.nextPage,
+        exact: true,
+      });
+      await next.click();
+      await expect
+        .poll(async () => (await (await request.get(gateUrl)).json()).pending)
+        .toBe(1);
+      const status = page.getByRole("status");
+      await expect(status).toHaveCount(1);
+      await expect(status).toHaveText(dictionary.listings.navigationPending);
+      await expect(status).toBeVisible();
+      await expect(next).toHaveAccessibleName(dictionary.listings.nextPage);
+      await expect(next).toBeFocused();
+      await expect(next).not.toHaveAttribute("aria-disabled");
+      await expect(page.getByRole("article")).toHaveCount(20);
+      for (const width of [320, 360]) {
+        await page.setViewportSize({ width, height: 800 });
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth)
+        ).toBeLessThanOrEqual(width);
+        expect(
+          await status.evaluate(
+            (element) => getComputedStyle(element).animationName
+          )
+        ).toBe("none");
+      }
+      await request.delete(gateUrl);
+      await expect(page).toHaveURL(/page=2/);
+      await expect(status).toHaveCount(0);
+      await expect(page.getByRole("article")).toHaveCount(1);
+      await expect(page.getByRole("article")).toContainText(
+        "Paged family house 21"
+      );
+      await expect(navigation).toContainText(
+        locale === "en" ? "Page 2 of 2" : "Страница 2 од 2"
+      );
+      await expect(page.getByRole("searchbox")).toHaveValue("Paged");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.listingType })
+      ).toHaveValue("Rent");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.propertyType })
+      ).toHaveValue("House");
+      expect((await (await request.get(gateUrl)).json()).requests).toBe(1);
+      expect(browserApiRequests).toEqual([]);
+    } finally {
+      await request.delete(gateUrl);
+    }
+  });
+
+  test(`${locale} shows search pending feedback until filtered results complete`, async ({
+    page,
+    request,
+  }) => {
+    const gateUrl = "http://localhost:5231/__test/listings-gate";
+    const browserApiRequests: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).port === "5231")
+        browserApiRequests.push(request.url());
+    });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`/${locale}/listings`);
+    await expect(page.getByRole("article")).toHaveCount(4);
+    await request.post(`${gateUrl}?lang=${locale}&page=1`);
+    try {
+      const keyword = page.getByRole("searchbox", {
+        name: dictionary.listings.searchLabel,
+      });
+      await keyword.fill("Paged");
+      await page
+        .getByRole("combobox", { name: dictionary.listings.listingType })
+        .selectOption("Rent");
+      await page
+        .getByRole("combobox", { name: dictionary.listings.propertyType })
+        .selectOption("House");
+      const submit = page.getByRole("button", {
+        name: dictionary.listings.search,
+        exact: true,
+      });
+      if (locale === "en") await keyword.press("Enter");
+      else await submit.click();
+      await expect
+        .poll(async () => (await (await request.get(gateUrl)).json()).pending)
+        .toBe(1);
+      const status = page.getByRole("status");
+      await expect(status).toHaveCount(1);
+      await expect(status).toHaveText(dictionary.listings.navigationPending);
+      await expect(status).toBeVisible();
+      await expect(submit).toHaveAccessibleName(dictionary.listings.search);
+      await expect(submit).toBeEnabled();
+      await expect(locale === "en" ? keyword : submit).toBeFocused();
+      await expect(page.getByRole("article")).toHaveCount(4);
+      for (const width of [320, 360]) {
+        await page.setViewportSize({ width, height: 800 });
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth)
+        ).toBeLessThanOrEqual(width);
+      }
+      await request.delete(gateUrl);
+      await expect(page.getByRole("article")).toHaveCount(20);
+      await expect(page.getByRole("article").first()).toContainText(
+        "Paged family house 01"
+      );
+      await expect(status).toHaveCount(0);
+      await expect(
+        page.getByRole("region", { name: dictionary.listings.results })
+      ).toContainText(
+        locale === "en" ? "21 properties found" : "Пронајдени имоти: 21"
+      );
+      await expect(keyword).toHaveValue("Paged");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.listingType })
+      ).toHaveValue("Rent");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.propertyType })
+      ).toHaveValue("House");
+      expect((await (await request.get(gateUrl)).json()).requests).toBe(1);
+      expect(browserApiRequests).toEqual([]);
+    } finally {
+      await request.delete(gateUrl);
+    }
+  });
+
+  test(`${locale} completes direct, keyword, filtered and paginated GET navigation without JavaScript`, async ({
+    browser,
+    baseURL,
+  }) => {
+    const context = await browser.newContext({
+      baseURL,
+      javaScriptEnabled: false,
+    });
+    try {
+      const page = await context.newPage();
+      await page.goto(`/${locale}/listings`);
+      await expect(page.getByRole("article")).toHaveCount(4);
+      await expect(page.getByRole("article").first()).toBeVisible();
+      expect(
+        await page
+          .locator("article")
+          .evaluateAll((articles) =>
+            articles.every((article) => article.closest("[hidden]") === null)
+          )
+      ).toBe(true);
+      await expect(page.getByRole("status")).toHaveCount(0);
+      const keyword = page.getByRole("searchbox", {
+        name: dictionary.listings.searchLabel,
+      });
+      await keyword.fill("Family");
+      await keyword.press("Enter");
+      await expect(page.getByRole("article")).toHaveCount(1);
+      await expect(page.getByRole("article")).toContainText("Family house");
+      await page
+        .getByRole("link", { name: dictionary.listings.clearSearch })
+        .click();
+      await keyword.fill("Paged");
+      await page
+        .getByRole("combobox", { name: dictionary.listings.listingType })
+        .selectOption("Rent");
+      await page
+        .getByRole("combobox", { name: dictionary.listings.propertyType })
+        .selectOption("House");
+      await keyword.press("Enter");
+      await expect(page.getByRole("article")).toHaveCount(20);
+      await page
+        .getByRole("link", { name: dictionary.listings.nextPage })
+        .click();
+      await expect(page).toHaveURL(/page=2/);
+      await expect(page.getByRole("article")).toHaveCount(1);
+      await expect(page.getByRole("article")).toContainText(
+        "Paged family house 21"
+      );
+      await expect(page.getByRole("article")).toBeVisible();
+      await expect(keyword).toHaveValue("Paged");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.listingType })
+      ).toHaveValue("Rent");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.propertyType })
+      ).toHaveValue("House");
+      await expect(page.getByRole("status")).toHaveCount(0);
+      for (const width of [320, 360]) {
+        await page.setViewportSize({ width, height: 800 });
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth)
+        ).toBeLessThanOrEqual(width);
+      }
+    } finally {
+      await context.close();
+    }
+  });
+
   test(`${locale} renders backend-shaped public listing cards without browser API requests`, async ({
     page,
   }) => {

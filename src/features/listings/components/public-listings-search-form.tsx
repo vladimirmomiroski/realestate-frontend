@@ -6,6 +6,7 @@ import type { Dictionary, Locale } from "@/i18n";
 import { Button } from "@/components/ui/button";
 
 import type { PublicListingsSearchState } from "../search/public-listings-search";
+import { PublicListingsFormStatus } from "./public-listings-form-status";
 
 type SearchLabels = Pick<
   Dictionary["listings"],
@@ -24,6 +25,7 @@ type SearchLabels = Pick<
   | "allPropertyTypes"
   | "listingTypes"
   | "propertyTypes"
+  | "navigationPending"
 >;
 
 type PublicListingsSearchFormProps = {
@@ -131,6 +133,7 @@ export function PublicListingsSearchForm({
             {error}
           </p>
         )}
+        <PublicListingsFormStatus label={labels.navigationPending} />
       </Form>
       {invalid && (
         <p role="alert" className="text-destructive mt-3 font-medium">

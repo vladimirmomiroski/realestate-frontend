@@ -97,8 +97,52 @@ const previewPng = Buffer.from(
   "base64"
 );
 
-createServer((request, response) => {
+let listingsGate = null;
+let listingsRequests = 0;
+
+function releaseListingsGate() {
+  if (listingsGate) {
+    clearTimeout(listingsGate.timeout);
+    listingsGate.release();
+    listingsGate = null;
+  }
+}
+
+createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost:5231");
+  if (url.pathname === "/__test/listings-gate") {
+    if (request.method === "POST") {
+      releaseListingsGate();
+      listingsRequests = 0;
+      let release;
+      const ready = new Promise((resolve) => {
+        release = resolve;
+      });
+      listingsGate = {
+        lang: url.searchParams.get("lang"),
+        page: url.searchParams.get("page") ?? "1",
+        pending: 0,
+        ready,
+        release,
+        timeout: setTimeout(releaseListingsGate, 20_000),
+      };
+      response.writeHead(204).end();
+    } else if (request.method === "DELETE") {
+      releaseListingsGate();
+      response.writeHead(204).end();
+    } else if (request.method === "GET") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({
+          pending: listingsGate?.pending ?? 0,
+          requests: listingsRequests,
+        })
+      );
+    } else {
+      response.writeHead(405).end();
+    }
+    return;
+  }
   if (
     request.method === "GET" &&
     url.pathname === "/uploads/listings/catalog-preview.png"
@@ -150,6 +194,15 @@ createServer((request, response) => {
   ) {
     response.writeHead(404).end();
     return;
+  }
+
+  listingsRequests += 1;
+  if (
+    listingsGate?.lang === searchParams.get("lang") &&
+    listingsGate.page === requestedPage
+  ) {
+    listingsGate.pending += 1;
+    await listingsGate.ready;
   }
 
   response.writeHead(200, {
