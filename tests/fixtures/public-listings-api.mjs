@@ -86,15 +86,11 @@ const listings = [
   },
 ];
 
-const page = {
-  items: listings,
-  page: 1,
-  pageSize: 20,
-  totalCount: listings.length,
-  totalPages: 1,
-  hasNextPage: false,
-  hasPreviousPage: false,
-};
+const pagedListings = Array.from({ length: 21 }, (_, index) => ({
+  ...listings[1],
+  id: `55555555-5555-4555-8555-${String(index + 1).padStart(12, "0")}`,
+  title: `Paged family house ${String(index + 1).padStart(2, "0")}`,
+}));
 
 const previewPng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAADAAAAAkCAIAAABAJy5dAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAUElEQVRYhe2WQQ0AQAzCpg5PqKjlk8E9mkwAIdBxKV/dzRVEQehQzVBsGXP8RDCiQzVDsWXMIRQHGjpUMxRbhhxCMNbXEZ8rzo/up1n+HGgPv5jO+dK5f1gAAAAASUVORK5CYII=",
@@ -128,6 +124,7 @@ createServer((request, response) => {
     "q",
     "listingType",
     "propertyType",
+    "page",
   ]);
   const validKeys = [...searchParams.keys()].every(
     (key) => allowedKeys.has(key) && searchParams.getAll(key).length === 1
@@ -135,6 +132,8 @@ createServer((request, response) => {
   const q = searchParams.get("q");
   const listingType = searchParams.get("listingType");
   const propertyType = searchParams.get("propertyType");
+  const requestedPage = searchParams.get("page") ?? "1";
+  const page = Number(requestedPage);
 
   if (
     request.method !== "GET" ||
@@ -142,9 +141,12 @@ createServer((request, response) => {
     !validKeys ||
     !["mk", "en"].includes(searchParams.get("lang")) ||
     searchParams.get("pageSize") !== "20" ||
-    ![null, "", "Family"].includes(q) ||
+    ![null, "", "Family", "Paged"].includes(q) ||
     ![null, "", "Sale", "Rent"].includes(listingType) ||
-    ![null, "", "Apartment", "House"].includes(propertyType)
+    ![null, "", "Apartment", "House"].includes(propertyType) ||
+    !/^[1-9][0-9]*$/.test(requestedPage) ||
+    !Number.isSafeInteger(page) ||
+    page > 2147483647
   ) {
     response.writeHead(404).end();
     return;
@@ -154,18 +156,22 @@ createServer((request, response) => {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
   });
-  const items = listings.filter(
+  const filtered = (q === "Paged" ? pagedListings : listings).filter(
     (listing) =>
       (q !== "Family" || listing.title === "Family house") &&
       (!listingType || listing.listingType === listingType) &&
       (!propertyType || listing.propertyType === propertyType)
   );
+  const totalPages = Math.ceil(filtered.length / 20);
   response.end(
     JSON.stringify({
-      ...page,
-      items,
-      totalCount: items.length,
-      totalPages: items.length ? 1 : 0,
+      items: filtered.slice((page - 1) * 20, page * 20),
+      page,
+      pageSize: 20,
+      totalCount: filtered.length,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
     })
   );
 }).listen(5231, "localhost");

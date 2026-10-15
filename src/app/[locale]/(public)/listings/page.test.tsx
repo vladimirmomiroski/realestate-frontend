@@ -71,7 +71,7 @@ describe("catalog server page URL integration", () => {
   it("renders the backend total independently of current-page items", async () => {
     vi.mocked(getPublicListings).mockResolvedValueOnce({
       items: [],
-      page: 2,
+      page: 3,
       pageSize: 20,
       totalCount: 24,
       totalPages: 2,
@@ -81,17 +81,91 @@ describe("catalog server page URL integration", () => {
     render(
       await ListingsPage({
         params: Promise.resolve({ locale: "en" }),
-        searchParams: Promise.resolve({ page: "2" }),
+        searchParams: Promise.resolve({ page: "3" }),
       })
     );
 
     expect(getPublicListings).toHaveBeenCalledExactlyOnceWith({
       locale: "en",
-      query: { page: 2 },
+      query: { page: 3 },
     });
     const results = screen.getByRole("region", { name: "Results" });
     expect(results).toHaveTextContent("24 properties found");
     expect(results.querySelectorAll("article")).toHaveLength(0);
+    expect(
+      screen.queryByRole("navigation", { name: "Result pages" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("passes backend page metadata to navigation without another retrieval", async () => {
+    vi.mocked(getPublicListings).mockResolvedValueOnce({
+      items: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          listingType: "Rent",
+          propertyType: "House",
+          price: 1200,
+          currency: "EUR",
+          areaSquareMeters: 160,
+          title: "Paged family house",
+          languageCode: "en",
+          city: "Skopje",
+          municipality: "Karpoš",
+        },
+      ],
+      page: 2,
+      pageSize: 20,
+      totalCount: 21,
+      totalPages: 2,
+      hasNextPage: false,
+      hasPreviousPage: true,
+    });
+    render(
+      await ListingsPage({
+        params: Promise.resolve({ locale: "en" }),
+        searchParams: Promise.resolve({
+          q: " Paged ",
+          listingType: "Rent",
+          propertyType: "House",
+          page: "2",
+          lang: "mk",
+        }),
+      })
+    );
+
+    expect(getPublicListings).toHaveBeenCalledExactlyOnceWith({
+      locale: "en",
+      query: {
+        q: "Paged",
+        listingType: "Rent",
+        propertyType: "House",
+        page: 2,
+      },
+    });
+    expect(screen.getByRole("region", { name: "Results" })).toHaveTextContent(
+      "21 properties found"
+    );
+    expect(
+      screen.getByRole("article", { name: "Paged family house" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: "Keyword or location" })
+    ).toHaveValue("Paged");
+    expect(screen.getByRole("combobox", { name: "Listing type" })).toHaveValue(
+      "Rent"
+    );
+    expect(screen.getByRole("combobox", { name: "Property type" })).toHaveValue(
+      "House"
+    );
+    const pagination = screen.getByRole("navigation", { name: "Result pages" });
+    expect(pagination).toHaveTextContent("Page 2 of 2");
+    expect(screen.getByRole("link", { name: "Previous page" })).toHaveAttribute(
+      "href",
+      "/en/listings?listingType=Rent&propertyType=House&q=Paged"
+    );
+    expect(
+      screen.queryByRole("link", { name: "Next page" })
+    ).not.toBeInTheDocument();
   });
 
   it("passes normalized selections to the form and server query", async () => {
