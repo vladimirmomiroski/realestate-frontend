@@ -73,8 +73,16 @@ export const en = {
     subtitle: "Browse homes for sale and rent across North Macedonia.",
     filters: "Filters",
     results: "Results",
-    emptyTitle: "No listings found",
-    emptyDescription: "Try changing your filters or search area.",
+    emptyTitle: "No matching properties",
+    emptyDescription:
+      "Try another keyword or change the listing or property type.",
+    catalogEmptyTitle: "No properties available",
+    catalogEmptyDescription:
+      "There are currently no properties in this catalog.",
+    emptyPageTitle: "No results on this page",
+    emptyPageDescription:
+      "This page has no listings. Return to the first page to view the matching properties.",
+    firstPage: "Return to the first page",
     listingType: "Listing type",
     propertyType: "Property type",
     allListingTypes: "All listing types",

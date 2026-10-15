@@ -99,6 +99,7 @@ const previewPng = Buffer.from(
 
 let listingsGate = null;
 let listingsRequests = 0;
+let emptyCatalogLocale = null;
 
 function releaseListingsGate() {
   if (listingsGate) {
@@ -110,6 +111,21 @@ function releaseListingsGate() {
 
 createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost:5231");
+  if (url.pathname === "/__test/catalog-empty") {
+    if (
+      request.method === "POST" &&
+      ["mk", "en"].includes(url.searchParams.get("lang"))
+    ) {
+      emptyCatalogLocale = url.searchParams.get("lang");
+      response.writeHead(204).end();
+    } else if (request.method === "DELETE") {
+      emptyCatalogLocale = null;
+      response.writeHead(204).end();
+    } else {
+      response.writeHead(405).end();
+    }
+    return;
+  }
   if (url.pathname === "/__test/listings-gate") {
     if (request.method === "POST") {
       releaseListingsGate();
@@ -209,7 +225,13 @@ createServer(async (request, response) => {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
   });
-  const filtered = (q === "Paged" ? pagedListings : listings).filter(
+  const candidates =
+    emptyCatalogLocale === searchParams.get("lang")
+      ? []
+      : q === "Paged"
+        ? pagedListings
+        : listings;
+  const filtered = candidates.filter(
     (listing) =>
       (q !== "Family" || listing.title === "Family house") &&
       (!listingType || listing.listingType === listingType) &&
