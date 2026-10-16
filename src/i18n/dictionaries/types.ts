@@ -9,6 +9,10 @@ export type Dictionary = {
       title: string;
       description: string;
     };
+    listings: {
+      title: string;
+      description: string;
+    };
   };
 
   navigation: {

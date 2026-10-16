@@ -12,6 +12,11 @@ export const en = {
       description:
         "Discover homes for sale and rent across North Macedonia with clear property information.",
     },
+    listings: {
+      title: "Properties for sale and rent in North Macedonia",
+      description:
+        "Browse apartments, houses, commercial properties and land for sale or rent across North Macedonia.",
+    },
   },
 
   navigation: {
