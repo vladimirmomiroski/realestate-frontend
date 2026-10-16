@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -41,6 +41,108 @@ describe("catalog server page URL integration", () => {
     { locale: "en", dictionary: en },
     { locale: "mk", dictionary: mk },
   ] as const) {
+    it(`${locale} composes named landmarks, logical headings, and actual backend content language`, async () => {
+      vi.mocked(getPublicListings).mockResolvedValueOnce({
+        items: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            listingType: "Sale",
+            propertyType: "Apartment",
+            price: 145000,
+            currency: "EUR",
+            areaSquareMeters: 82.5,
+            title: "Стан во Центар",
+            languageCode: "mk",
+            city: "Скопје",
+            municipality: "Центар",
+          },
+        ],
+        page: 2,
+        pageSize: 20,
+        totalCount: 21,
+        totalPages: 2,
+        hasPreviousPage: true,
+        hasNextPage: false,
+      });
+      render(
+        await ListingsPage({
+          params: Promise.resolve({ locale }),
+          searchParams: Promise.resolve({ page: "2" }),
+        })
+      );
+      expect(getPublicListings).toHaveBeenCalledExactlyOnceWith({
+        locale,
+        query: { page: 2 },
+      });
+      expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+        dictionary.listings.title
+      );
+      const search = screen.getByRole("search", {
+        name: dictionary.listings.search,
+      });
+      expect(
+        within(search).getByRole("searchbox", {
+          name: dictionary.listings.searchLabel,
+        })
+      ).toHaveAccessibleDescription(dictionary.listings.searchHint);
+      expect(
+        within(search).getByRole("combobox", {
+          name: dictionary.listings.listingType,
+        })
+      ).toBeInTheDocument();
+      expect(
+        within(search).getByRole("combobox", {
+          name: dictionary.listings.propertyType,
+        })
+      ).toBeInTheDocument();
+      const results = screen.getByRole("region", {
+        name: dictionary.listings.results,
+      });
+      expect(results).not.toHaveAttribute("aria-live");
+      expect(
+        results.querySelector('[role="status"], [role="alert"], [aria-live]')
+      ).toBeNull();
+      const article = within(results).getByRole("article", {
+        name: "Стан во Центар",
+      });
+      expect(
+        within(article).getByRole("heading", { level: 2 }).closest("[lang]")
+      ).toHaveAttribute("lang", "mk");
+      expect(
+        within(article).getByText("Центар, Скопје").closest("[lang]")
+      ).toHaveAttribute("lang", "mk");
+      expect(within(article).queryByRole("link")).not.toBeInTheDocument();
+      expect(within(article).queryByRole("button")).not.toBeInTheDocument();
+      expect(
+        within(article).getByText(dictionary.listings.imageUnavailable)
+      ).toBeInTheDocument();
+      const pagination = screen.getByRole("navigation", {
+        name: dictionary.listings.pagination,
+      });
+      expect(
+        within(pagination).getByRole("link", {
+          name: dictionary.listings.previousPage,
+        })
+      ).toHaveAttribute("href", `/${locale}/listings`);
+      expect(
+        within(pagination).queryByRole("link", {
+          name: dictionary.listings.nextPage,
+        })
+      ).not.toBeInTheDocument();
+      expect(
+        pagination.querySelector('[aria-current="page"]')
+      ).toHaveTextContent(
+        dictionary.listings.pageOf
+          .replace("{page}", "2")
+          .replace("{totalPages}", "2")
+      );
+      expect(
+        pagination.querySelector('[aria-disabled], [tabindex="-1"]')
+      ).toBeNull();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
     it.each([
       [
         new ApiProblemError({

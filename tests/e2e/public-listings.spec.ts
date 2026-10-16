@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type Page } from "@playwright/test";
 
 import { en } from "../../src/i18n/dictionaries/en";
 import { mk } from "../../src/i18n/dictionaries/mk";
@@ -12,7 +13,272 @@ const localeCases = [
   { locale: "en", dictionary: en },
 ] as const;
 
+async function expectCatalogMetadata(
+  page: Page,
+  locale: "mk" | "en",
+  dictionary: typeof mk | typeof en,
+  origin: string,
+  index: boolean
+) {
+  await expect(page).toHaveTitle(dictionary.metadata.listings.title);
+  const head = page.locator("head");
+  await expect(head.locator("title")).toHaveCount(1);
+  await expect(page.locator('meta[name="description"]')).toHaveCount(1);
+  await expect(head.locator('meta[name="description"]')).toHaveAttribute(
+    "content",
+    dictionary.metadata.listings.description
+  );
+  await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
+  await expect(head.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    `${origin}/${locale}/listings`
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang]')).toHaveCount(2);
+  for (const language of ["mk", "en"]) {
+    await expect(
+      head.locator(`link[rel="alternate"][hreflang="${language}"]`)
+    ).toHaveAttribute("href", `${origin}/${language}/listings`);
+  }
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(1);
+  await expect(head.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    index ? "index, follow" : "noindex, follow"
+  );
+  await expect(page.locator('meta[name="googlebot"]')).toHaveCount(0);
+}
+
 for (const { locale, dictionary } of localeCases) {
+  for (const { name, query } of [
+    { name: "clean", query: "" },
+    {
+      name: "filtered",
+      query: "?q=Family&listingType=Rent&propertyType=House",
+    },
+    { name: "paginated", query: "?q=Paged&page=2" },
+    { name: "unknown parameter", query: "?unknown=value" },
+    { name: "invalid keyword", query: "?q=x" },
+    { name: "explicit default page", query: "?page=1" },
+    { name: "empty keyword", query: "?q=" },
+  ]) {
+    test(`${locale} catalog metadata for ${name} URL`, async ({
+      page,
+      baseURL,
+    }) => {
+      const path = `/${locale}/listings${query}`;
+      await page.goto(path);
+      await expectCatalogMetadata(
+        page,
+        locale,
+        dictionary,
+        baseURL!,
+        query === ""
+      );
+      await expect(page).toHaveURL(`${baseURL}${path}`);
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      if (query) {
+        const otherLocale = locale === "mk" ? "en" : "mk";
+        const switcher = page.getByRole("navigation", {
+          name: dictionary.locale.label,
+        });
+        await expect(
+          switcher.getByRole("link", {
+            name: dictionary.locale[otherLocale],
+            exact: true,
+          })
+        ).toHaveAttribute("href", `/${otherLocale}/listings${query}`);
+      }
+    });
+  }
+
+  test(`${locale} catalog metadata is server-rendered in the head for HTML-limited crawlers`, async ({
+    page,
+    request,
+    baseURL,
+  }) => {
+    for (const query of ["", "?unknown=value"]) {
+      const response = await request.get(`/${locale}/listings${query}`, {
+        headers: { "User-Agent": "facebookexternalhit/1.1" },
+      });
+      expect(response.status()).toBe(200);
+      const metadata = await page.evaluate(
+        (html) => {
+          const head = new DOMParser().parseFromString(html, "text/html").head;
+          return {
+            titles: Array.from(
+              head.querySelectorAll("title"),
+              (node) => node.textContent
+            ),
+            descriptions: Array.from(
+              head.querySelectorAll('meta[name="description"]'),
+              (node) => node.getAttribute("content")
+            ),
+            canonicals: Array.from(
+              head.querySelectorAll('link[rel="canonical"]'),
+              (node) => node.getAttribute("href")
+            ),
+            languages: Array.from(
+              head.querySelectorAll('link[rel="alternate"][hreflang]'),
+              (node) => [
+                node.getAttribute("hreflang"),
+                node.getAttribute("href"),
+              ]
+            ),
+            robots: Array.from(
+              head.querySelectorAll('meta[name="robots"]'),
+              (node) => node.getAttribute("content")
+            ),
+          };
+        },
+        await response.text()
+      );
+      expect(metadata).toEqual({
+        titles: [dictionary.metadata.listings.title],
+        descriptions: [dictionary.metadata.listings.description],
+        canonicals: [`${baseURL}/${locale}/listings`],
+        languages: [
+          ["mk", `${baseURL}/mk/listings`],
+          ["en", `${baseURL}/en/listings`],
+        ],
+        robots: [query ? "noindex, follow" : "index, follow"],
+      });
+    }
+  });
+
+  test(`${locale} catalog semantic audit covers results, pagination, empty states, and failures`, async ({
+    page,
+    request,
+    baseURL,
+  }) => {
+    const control = "http://localhost:5231/__test/listings-failure";
+    const audit = async () => {
+      await expect(
+        page.getByRole("heading", {
+          level: 1,
+          name: dictionary.listings.title,
+          exact: true,
+        })
+      ).toHaveCount(1);
+      const scan = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+        .analyze();
+      expect(
+        scan.violations.filter(
+          ({ impact }) => impact === "serious" || impact === "critical"
+        )
+      ).toEqual([]);
+    };
+    await page.goto(`/${locale}/listings`);
+    await page
+      .getByRole("button", {
+        name: locale === "en" ? dictionary.theme.dark : dictionary.theme.light,
+        exact: true,
+      })
+      .click();
+    const search = page.getByRole("search", {
+      name: dictionary.listings.search,
+    });
+    const keyword = search.getByRole("searchbox", {
+      name: dictionary.listings.searchLabel,
+    });
+    await keyword.focus();
+    await page.keyboard.press("Tab");
+    await expect(
+      search.getByRole("combobox", { name: dictionary.listings.listingType })
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(
+      search.getByRole("combobox", { name: dictionary.listings.propertyType })
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(
+      search.getByRole("button", {
+        name: dictionary.listings.search,
+        exact: true,
+      })
+    ).toBeFocused();
+    const results = page.getByRole("region", {
+      name: dictionary.listings.results,
+      exact: true,
+    });
+    await expect(results.getByRole("article")).toHaveCount(4);
+    await expect(
+      results.locator('[role="status"], [role="alert"], [aria-live]')
+    ).toHaveCount(0);
+    const fallbackCard = results.getByRole("article", {
+      name: "Стан во Центар",
+    });
+    await expect(
+      fallbackCard
+        .getByRole("heading", { level: 2, name: "Стан во Центар" })
+        .locator("..")
+    ).toHaveAttribute("lang", "mk");
+    await expect(fallbackCard.locator("a, button, [tabindex]")).toHaveCount(0);
+    await expect(
+      fallbackCard.locator('img[alt=""]').or(
+        fallbackCard.getByText(dictionary.listings.imageUnavailable, {
+          exact: true,
+        })
+      )
+    ).toBeVisible();
+    await expect(fallbackCard.locator('img:not([alt=""])')).toHaveCount(0);
+    await audit();
+
+    await page.goto(`/${locale}/listings?q=Paged&page=2`);
+    const pagination = page.getByRole("navigation", {
+      name: dictionary.listings.pagination,
+    });
+    await expect(
+      pagination.getByRole("link", {
+        name: dictionary.listings.previousPage,
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      pagination.getByRole("link", {
+        name: dictionary.listings.nextPage,
+        exact: true,
+      })
+    ).toHaveCount(0);
+    await expect(pagination.locator('[aria-current="page"]')).toHaveText(
+      dictionary.listings.pageOf
+        .replace("{page}", "2")
+        .replace("{totalPages}", "2")
+    );
+    await audit();
+
+    await page.goto(
+      `/${locale}/listings?listingType=Rent&propertyType=Apartment`
+    );
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: dictionary.listings.emptyTitle,
+      })
+    ).toBeVisible();
+    await audit();
+
+    expect(
+      (await request.post(`${control}?lang=${locale}&mode=server`)).ok()
+    ).toBe(true);
+    try {
+      await page.goto(`/${locale}/listings`);
+      const error = page.getByRole("alert", {
+        name: dictionary.listings.failure.title,
+      });
+      await expect(error.getByRole("heading", { level: 2 })).toBeVisible();
+      await expect(
+        error.getByText("fixture-server-request-id", { exact: true })
+      ).toBeVisible();
+      await expect(results).toHaveCount(0);
+      await expectCatalogMetadata(page, locale, dictionary, baseURL!, true);
+      const { requests } = await (await request.get(control)).json();
+      expect(requests).toEqual([{ lang: locale, pageSize: "20" }]);
+      await audit();
+    } finally {
+      await request.delete(control);
+    }
+  });
+
   for (const { mode, message, requestId } of [
     {
       mode: "validation",
@@ -368,6 +634,7 @@ for (const { locale, dictionary } of localeCases) {
   test(`${locale} presents a clean empty catalog without reset advice`, async ({
     page,
     request,
+    baseURL,
   }) => {
     const controlUrl = "http://localhost:5231/__test/catalog-empty";
     expect((await request.post(`${controlUrl}?lang=${locale}`)).ok()).toBe(
@@ -376,6 +643,7 @@ for (const { locale, dictionary } of localeCases) {
     try {
       const response = await page.goto(`/${locale}/listings`);
       expect(response?.status()).toBe(200);
+      await expectCatalogMetadata(page, locale, dictionary, baseURL!, true);
       const empty = page.getByRole("region", {
         name: dictionary.listings.catalogEmptyTitle,
       });
@@ -442,6 +710,7 @@ for (const { locale, dictionary } of localeCases) {
       `/${locale}/listings?listingType=Rent&propertyType=Apartment&page=4`
     );
     expect(zeroResponse?.status()).toBe(200);
+    await expectCatalogMetadata(page, locale, dictionary, baseURL!, false);
     const zero = page.getByRole("region", {
       name: dictionary.listings.emptyTitle,
     });
@@ -475,6 +744,7 @@ for (const { locale, dictionary } of localeCases) {
     const outPath = `/${locale}/listings?q=Paged&listingType=Rent&propertyType=House&page=5&lang=${locale === "en" ? "mk" : "en"}&pageSize=99&sort=oldest`;
     const response = await page.goto(outPath);
     expect(response?.status()).toBe(200);
+    await expectCatalogMetadata(page, locale, dictionary, baseURL!, false);
     await expect(page).toHaveURL(`${baseURL}${outPath}`);
     const emptyPage = page.getByRole("region", {
       name: dictionary.listings.emptyPageTitle,

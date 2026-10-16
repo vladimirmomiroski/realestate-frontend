@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { RefreshErrorState } from "@/components/feedback/refresh-error-state";
+import { routes } from "@/config/routes";
 import { getPublicListings } from "@/features/listings/api/get-public-listings.server";
 import { PublicListingsEmptyState } from "@/features/listings/components/public-listings-empty-state";
 import { PublicListingsPagination } from "@/features/listings/components/public-listings-pagination";
@@ -11,7 +13,7 @@ import {
   parsePublicListingsSearchParams,
   toPublicListingsQuery,
 } from "@/features/listings/search/public-listings-search";
-import { isSupportedLocale } from "@/i18n/config";
+import { isSupportedLocale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/get-dictionary.server";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +22,37 @@ type ListingsPageProps = {
   params: Promise<{ locale: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: ListingsPageProps): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isSupportedLocale(locale)) {
+    notFound();
+  }
+
+  const [dictionary, query] = await Promise.all([
+    getDictionary(locale),
+    searchParams,
+  ]);
+
+  return {
+    title: dictionary.metadata.listings.title,
+    description: dictionary.metadata.listings.description,
+    alternates: {
+      canonical: routes.listings(locale),
+      languages: Object.fromEntries(
+        locales.map((supportedLocale) => [
+          supportedLocale,
+          routes.listings(supportedLocale),
+        ])
+      ),
+    },
+    // URL presence governs indexing, including ignored and default-valued keys.
+    robots: { index: Object.keys(query).length === 0, follow: true },
+  };
+}
 
 export default async function ListingsPage({
   params,
