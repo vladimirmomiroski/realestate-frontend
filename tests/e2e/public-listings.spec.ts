@@ -13,6 +13,279 @@ const localeCases = [
   { locale: "en", dictionary: en },
 ] as const;
 
+for (const { locale, dictionary } of localeCases) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`${locale} ${theme} catalog responsive contrast and long-content audit`, async ({
+      page,
+      request,
+    }) => {
+      test.setTimeout(90_000);
+      const stress = "http://localhost:5231/__test/catalog-stress";
+      const failure = "http://localhost:5231/__test/listings-failure";
+      await page.addInitScript(
+        (value) => localStorage.setItem("theme", value),
+        theme
+      );
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await request.post(`${stress}?lang=${locale}`);
+      try {
+        await page.goto(`/${locale}/listings`);
+        await expect(page.getByRole("article")).toHaveCount(4);
+        await page.evaluate(() => document.fonts.ready);
+        await expect(page.locator("html")).toHaveClass(new RegExp(theme));
+        for (const [width, columns] of [
+          [320, 1],
+          [360, 1],
+          [390, 1],
+          [768, 2],
+          [1024, 2],
+          [1280, 3],
+          [1440, 3],
+        ] as const) {
+          await page.setViewportSize({ width, height: 900 });
+          const geometry = await page.locator("main").evaluate((main) => {
+            const cards = Array.from(main.querySelectorAll("article"));
+            return {
+              pageWidth: document.documentElement.scrollWidth,
+              columns: new Set(
+                cards.map((card) => card.getBoundingClientRect().x)
+              ).size,
+              overflow: cards.flatMap((card) =>
+                Array.from(card.querySelectorAll("h2, p, dd"))
+                  .filter(
+                    (element) =>
+                      element.scrollWidth > element.clientWidth + 1 ||
+                      element.getBoundingClientRect().right >
+                        card.getBoundingClientRect().right
+                  )
+                  .map((element) => element.textContent)
+              ),
+              mediaRatios: cards.map((card) => {
+                const frame = card.querySelector('[class*="aspect-"]')!;
+                const box = frame.getBoundingClientRect();
+                return box.width / box.height;
+              }),
+            };
+          });
+          expect(geometry.pageWidth).toBeLessThanOrEqual(width);
+          expect(geometry.columns).toBe(columns);
+          expect(geometry.overflow).toEqual([]);
+          for (const ratio of geometry.mediaRatios)
+            expect(ratio).toBeCloseTo(4 / 3, 2);
+          const selectedText = await page
+            .locator("select")
+            .evaluateAll((elements) =>
+              elements.map((element) => {
+                const select = element as HTMLSelectElement;
+                const style = getComputedStyle(element);
+                const canvas = document.createElement("canvas");
+                const context = canvas.getContext("2d")!;
+                context.font = style.font;
+                const text = select.selectedOptions[0]!.textContent!;
+                return {
+                  text,
+                  // Reserve space for padding and Chromium's native arrow.
+                  required:
+                    context.measureText(text).width +
+                    Number.parseFloat(style.paddingLeft) +
+                    Number.parseFloat(style.paddingRight) +
+                    20,
+                  available: element.clientWidth,
+                };
+              })
+            );
+          for (const select of selectedText) {
+            expect(
+              select.available,
+              `${width}px: ${select.text}`
+            ).toBeGreaterThanOrEqual(select.required);
+          }
+          if (width >= 1024) {
+            const keyword = await page.getByRole("searchbox").boundingBox();
+            const select = await page
+              .getByRole("combobox")
+              .first()
+              .boundingBox();
+            expect(keyword!.width).toBeGreaterThan(select!.width);
+          }
+        }
+
+        await page.setViewportSize({ width: 320, height: 900 });
+        const form = page.getByRole("search");
+        const controls = [
+          form.getByRole("searchbox"),
+          form.getByRole("combobox", { name: dictionary.listings.listingType }),
+          form.getByRole("combobox", {
+            name: dictionary.listings.propertyType,
+          }),
+          form.getByRole("button", {
+            name: dictionary.listings.search,
+            exact: true,
+          }),
+        ];
+        await controls[0]!.focus();
+        for (const [index, control] of controls.entries()) {
+          if (index) await page.keyboard.press("Tab");
+          await expect(control).toBeFocused();
+          const readColors = () =>
+            control.evaluate((element) => {
+              const style = getComputedStyle(element);
+              const canvas = document.createElement("canvas");
+              canvas.width = canvas.height = 1;
+              const context = canvas.getContext("2d")!;
+              // Rasterize computed CSS colors, including Tailwind color-mix alpha,
+              // over the actual adjacent surface before measuring luminance.
+              const luminance = (
+                color: string,
+                base = style.backgroundColor
+              ) => {
+                context.fillStyle = base;
+                context.fillRect(0, 0, 1, 1);
+                context.fillStyle = color;
+                context.fillRect(0, 0, 1, 1);
+                const [r, g, b] = Array.from(
+                  context.getImageData(0, 0, 1, 1).data
+                )
+                  .slice(0, 3)
+                  .map((channel) => {
+                    const value = channel / 255;
+                    return value <= 0.04045
+                      ? value / 12.92
+                      : ((value + 0.055) / 1.055) ** 2.4;
+                  });
+                return r! * 0.2126 + g! * 0.7152 + b! * 0.0722;
+              };
+              const background = luminance(style.backgroundColor);
+              const contrast = (
+                color: string,
+                base = style.backgroundColor
+              ) => {
+                const foreground = luminance(color, base);
+                const adjacent =
+                  base === style.backgroundColor ? background : luminance(base);
+                return (
+                  (Math.max(foreground, adjacent) + 0.05) /
+                  (Math.min(foreground, adjacent) + 0.05)
+                );
+              };
+              let ancestor = element.parentElement;
+              while (
+                ancestor &&
+                getComputedStyle(ancestor).backgroundColor ===
+                  "rgba(0, 0, 0, 0)"
+              )
+                ancestor = ancestor.parentElement;
+              const surface = getComputedStyle(ancestor!).backgroundColor;
+              const box = element.getBoundingClientRect();
+              return {
+                border: contrast(style.borderTopColor),
+                text: contrast(style.color),
+                focus: contrast(style.outlineColor, surface),
+                outline: style.outlineStyle,
+                outlineWidth: Number.parseFloat(style.outlineWidth),
+                width: box.width,
+                height: box.height,
+              };
+            });
+          // Keyboard focus and its CSS pseudo-class can settle on separate frames.
+          await expect
+            .poll(async () => (await readColors()).focus)
+            .toBeGreaterThanOrEqual(3);
+          const colors = await readColors();
+          if (index < 3) {
+            expect(
+              colors.border,
+              `${theme} control boundary`
+            ).toBeGreaterThanOrEqual(3);
+          }
+          expect(
+            colors.focus,
+            `${theme} focus indicator`
+          ).toBeGreaterThanOrEqual(3);
+          expect(colors.text).toBeGreaterThanOrEqual(4.5);
+          expect(colors.outline).not.toBe("none");
+          expect(colors.outlineWidth).toBeGreaterThanOrEqual(3);
+          expect(colors.width).toBeGreaterThanOrEqual(44);
+          expect(colors.height).toBeGreaterThanOrEqual(44);
+          console.log(
+            `[catalog contrast] ${locale} ${theme} control ${index}: ${JSON.stringify(colors)}`
+          );
+        }
+
+        await request.delete(stress);
+        const checkTargets = async () => {
+          const sizes = await page
+            .locator("main a[href], main button")
+            .evaluateAll((elements) =>
+              elements.map((element) => {
+                const box = element.getBoundingClientRect();
+                return {
+                  name: element.textContent,
+                  width: box.width,
+                  height: box.height,
+                };
+              })
+            );
+          for (const size of sizes) {
+            // WCAG 2.2 minimum width; retain the established 44px target height.
+            expect(size.width, size.name ?? "control").toBeGreaterThanOrEqual(
+              24
+            );
+            expect(size.height, size.name ?? "control").toBeGreaterThanOrEqual(
+              44
+            );
+          }
+          for (const target of await page
+            .locator("main a[href], main button")
+            .all()) {
+            await target.focus();
+            await expect(target).toBeFocused();
+            const outline = await target.evaluate((element) => {
+              const style = getComputedStyle(element);
+              return {
+                style: style.outlineStyle,
+                width: Number.parseFloat(style.outlineWidth),
+              };
+            });
+            expect(outline.style).not.toBe("none");
+            expect(outline.width).toBeGreaterThanOrEqual(3);
+          }
+        };
+        for (const query of [
+          "",
+          "?q=Family&listingType=Rent&propertyType=House",
+          "?listingType=Rent&propertyType=Apartment",
+          "?q=Paged&page=2",
+        ]) {
+          await page.goto(`/${locale}/listings${query}`);
+          await checkTargets();
+          const scan = await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+            .analyze();
+          expect(scan.violations).toEqual([]);
+        }
+        await request.post(`${failure}?lang=${locale}&mode=server`);
+        await page.goto(`/${locale}/listings`);
+        await expect(page.getByRole("alert")).toBeVisible();
+        await checkTargets();
+        const scan = await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+          .analyze();
+        expect(scan.violations).toEqual([]);
+        for (const width of [320, 360]) {
+          await page.setViewportSize({ width, height: 900 });
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth)
+          ).toBeLessThanOrEqual(width);
+        }
+      } finally {
+        await request.delete(stress);
+        await request.delete(failure);
+      }
+    });
+  }
+}
+
 async function expectCatalogMetadata(
   page: Page,
   locale: "mk" | "en",

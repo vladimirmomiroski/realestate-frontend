@@ -58,14 +58,14 @@ export function PublicListingsSearchForm({
     : undefined;
 
   return (
-    <div className="mt-10 max-w-4xl">
+    <div className="mt-10 max-w-5xl">
       <Form
         action={routes.listings(locale)}
         role="search"
         aria-label={labels.search}
         className="border-border bg-surface rounded-lg border p-5 sm:p-6"
       >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)_minmax(14rem,1fr)_auto] lg:items-end">
           <div className="min-w-0 sm:col-span-2 lg:col-span-1">
             <label htmlFor={inputId} className="block font-semibold">
               {labels.searchLabel}
@@ -81,7 +81,7 @@ export function PublicListingsSearchForm({
               defaultValue={value}
               aria-invalid={invalid || undefined}
               aria-describedby={invalid ? `${hintId} ${errorId}` : hintId}
-              className={`bg-surface text-foreground focus-visible:outline-focus-ring mt-4 min-h-11 w-full min-w-0 rounded-md border px-3 py-2 focus-visible:outline-3 focus-visible:outline-offset-2 ${invalid ? "border-destructive" : "border-border"}`}
+              className={`bg-surface text-foreground focus-visible:outline-focus-ring mt-4 min-h-11 w-full min-w-0 rounded-md border px-3 py-2 focus-visible:outline-3 focus-visible:outline-offset-2 ${invalid ? "border-destructive" : "border-on-surface-muted/70"}`}
             />
           </div>
           <div className="min-w-0">
@@ -96,7 +96,7 @@ export function PublicListingsSearchForm({
               id="public-listings-listing-type"
               name="listingType"
               defaultValue={search.filters.listingType ?? ""}
-              className="border-border bg-surface text-foreground focus-visible:outline-focus-ring mt-2 min-h-11 w-full min-w-0 rounded-md border px-3 py-2 focus-visible:outline-3 focus-visible:outline-offset-2"
+              className="border-on-surface-muted/70 bg-surface text-foreground focus-visible:outline-focus-ring mt-2 min-h-11 w-full min-w-0 rounded-md border px-3 py-2 focus-visible:outline-3 focus-visible:outline-offset-2"
             >
               <option value="">{labels.allListingTypes}</option>
               <option value="Sale">{labels.listingTypes.Sale}</option>
@@ -115,7 +115,7 @@ export function PublicListingsSearchForm({
               id="public-listings-property-type"
               name="propertyType"
               defaultValue={search.filters.propertyType ?? ""}
-              className="border-border bg-surface text-foreground focus-visible:outline-focus-ring mt-2 min-h-11 w-full min-w-0 rounded-md border px-3 py-2 focus-visible:outline-3 focus-visible:outline-offset-2"
+              className="border-on-surface-muted/70 bg-surface text-foreground focus-visible:outline-focus-ring mt-2 min-h-11 w-full min-w-0 rounded-md border px-3 py-2 focus-visible:outline-3 focus-visible:outline-offset-2"
             >
               <option value="">{labels.allPropertyTypes}</option>
               <option value="Apartment">

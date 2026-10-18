@@ -92,6 +92,29 @@ const pagedListings = Array.from({ length: 21 }, (_, index) => ({
   title: `Paged family house ${String(index + 1).padStart(2, "0")}`,
 }));
 
+const stressListings = listings.map((listing, index) => ({
+  ...listing,
+  ...(index < 2
+    ? {
+        title:
+          index === 0
+            ? "Просторен семеен стан со тераса и поглед кон планината во мирна населба, со одлична поврзаност до центарот на градот"
+            : "Spacious family home with generous living areas, a peaceful location and convenient connections to the city centre",
+        neighborhood:
+          index === 0
+            ? "Горнодолномалорекансконаселбеноподрачје"
+            : "UpperRiversideNeighbourhoodWithAnUnusuallyLongName",
+        municipality:
+          index === 0
+            ? "Општина со многу долго име за проверка на прелевање"
+            : "Municipality with a deliberately long display name",
+        price: 9876543210000.99,
+        areaSquareMeters: 1234567890.25,
+        rooms: null,
+      }
+    : {}),
+}));
+
 const previewPng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAADAAAAAkCAIAAABAJy5dAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAUElEQVRYhe2WQQ0AQAzCpg5PqKjlk8E9mkwAIdBxKV/dzRVEQehQzVBsGXP8RDCiQzVDsWXMIRQHGjpUMxRbhhxCMNbXEZ8rzo/up1n+HGgPv5jO+dK5f1gAAAAASUVORK5CYII=",
   "base64"
@@ -101,6 +124,7 @@ let listingsGate = null;
 let listingsRequests = 0;
 let emptyCatalogLocale = null;
 let listingsFailure = null;
+let stressCatalogLocale = null;
 
 function releaseListingsGate() {
   if (listingsGate) {
@@ -112,6 +136,19 @@ function releaseListingsGate() {
 
 createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost:5231");
+  if (url.pathname === "/__test/catalog-stress") {
+    if (
+      request.method === "POST" &&
+      ["mk", "en"].includes(url.searchParams.get("lang"))
+    ) {
+      stressCatalogLocale = url.searchParams.get("lang");
+      response.writeHead(204).end();
+    } else if (request.method === "DELETE") {
+      stressCatalogLocale = null;
+      response.writeHead(204).end();
+    } else response.writeHead(400).end();
+    return;
+  }
   if (url.pathname === "/__test/listings-failure") {
     if (
       request.method === "POST" &&
@@ -314,9 +351,11 @@ createServer(async (request, response) => {
   const candidates =
     emptyCatalogLocale === searchParams.get("lang")
       ? []
-      : q === "Paged"
-        ? pagedListings
-        : listings;
+      : stressCatalogLocale === searchParams.get("lang")
+        ? stressListings
+        : q === "Paged"
+          ? pagedListings
+          : listings;
   const filtered = candidates.filter(
     (listing) =>
       (q !== "Family" || listing.title === "Family house") &&
