@@ -1,5 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 
 import { en } from "../../src/i18n/dictionaries/en";
 import { mk } from "../../src/i18n/dictionaries/mk";
@@ -7,11 +12,198 @@ import {
   formatAreaSquareMeters,
   formatPrice,
 } from "../../src/features/listings/utils/listing-formatters";
+import { parsePublicListingsResponse } from "../../src/features/listings/api/public-listings-contract";
 
 const localeCases = [
   { locale: "mk", dictionary: mk },
   { locale: "en", dictionary: en },
 ] as const;
+
+const observedRequestsUrl = "http://localhost:5231/__test/listings-requests";
+
+test.afterEach(async ({ request }) => {
+  await request.delete(observedRequestsUrl);
+});
+
+async function expectListingsRequest(
+  request: APIRequestContext,
+  query: Record<string, string>
+) {
+  expect(await (await request.get(observedRequestsUrl)).json()).toEqual([
+    {
+      method: "GET",
+      path: "/api/listings",
+      query: Object.entries(query).sort(([left], [right]) =>
+        left.localeCompare(right)
+      ),
+      hasAuthorization: false,
+      hasRequestId: false,
+    },
+  ]);
+}
+
+test("fixture HTTP responses satisfy the production adapter and reject unsupported requests", async ({
+  request,
+}) => {
+  try {
+    for (const [query, expected] of [
+      ["lang=en&pageSize=20", { page: 1, totalCount: 4, count: 4 }],
+      [
+        "lang=mk&page=2&pageSize=20&q=Paged",
+        { page: 2, totalCount: 21, count: 1 },
+      ],
+      [
+        "lang=en&page=5&pageSize=20&q=Paged",
+        { page: 5, totalCount: 21, count: 0 },
+      ],
+      [
+        "lang=mk&page=5&pageSize=20&listingType=Rent&propertyType=Apartment",
+        { page: 5, totalCount: 0, count: 0 },
+      ],
+    ] as const) {
+      const response = await request.get(
+        `http://localhost:5231/api/listings?${query}`
+      );
+      expect(response.status()).toBe(200);
+      const body: unknown = await response.json();
+      const page = parsePublicListingsResponse(body);
+      expect(page).toMatchObject({
+        page: expected.page,
+        pageSize: 20,
+        totalCount: expected.totalCount,
+      });
+      expect(page.items).toHaveLength(expected.count);
+      if (expected.totalCount === 4) {
+        expect(page.items.map((item) => item.propertyType)).toEqual([
+          "Apartment",
+          "House",
+          "Commercial",
+          "Land",
+        ]);
+        expect(new Set(page.items.map((item) => item.id)).size).toBe(4);
+        expect(body).toMatchObject({
+          items: [
+            { status: "Active", languageCode: "mk" },
+            { status: "Active", languageCode: "en" },
+            {
+              status: "Active",
+              commercialDetails: { commercialType: "Office" },
+            },
+            { status: "Active", landDetails: { landType: "BuildingPlot" } },
+          ],
+        });
+      }
+    }
+    for (const query of [
+      "lang=en&pageSize=99",
+      ...[
+        "sort=newest",
+        "q=",
+        "listingType=",
+        "propertyType=Commercial",
+        "page=1&page=2",
+        "unknown=value",
+      ].map((query) => `lang=en&pageSize=20&${query}`),
+    ]) {
+      const response = await request.get(
+        `http://localhost:5231/api/listings?${query}`
+      );
+      expect(response.status()).toBe(404);
+    }
+    const wrongMethod = await request.post(
+      "http://localhost:5231/api/listings?lang=en&pageSize=20"
+    );
+    expect(wrongMethod.status()).toBe(404);
+  } finally {
+    await request.delete(observedRequestsUrl);
+  }
+});
+
+for (const { locale, dictionary } of localeCases) {
+  test(`${locale} forwards only normalized URL state and suppresses invalid keyword retrieval`, async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(60_000);
+    const browserRequests: string[] = [];
+    page.on("request", (incoming) => {
+      if (new URL(incoming.url()).port === "5231")
+        browserRequests.push(incoming.url());
+    });
+    try {
+      for (const [query, message] of [
+        ["q=x", dictionary.listings.searchTooShort],
+        [`q=${"x".repeat(101)}`, dictionary.listings.searchTooLong],
+        ["q=Family&q=Paged", dictionary.listings.searchRepeated],
+      ] as const) {
+        await request.delete(observedRequestsUrl);
+        await page.goto(`/${locale}/listings?${query}`);
+        await expect(page.getByRole("searchbox")).toHaveAttribute(
+          "aria-invalid",
+          "true"
+        );
+        await expect(page.getByRole("article")).toHaveCount(0);
+        await expect(page.getByText(message, { exact: true })).toBeVisible();
+        await expect(
+          page.getByRole("region", { name: dictionary.listings.results })
+        ).toHaveCount(0);
+        expect(await (await request.get(observedRequestsUrl)).json()).toEqual(
+          []
+        );
+      }
+      for (const query of [
+        "q=%20%20",
+        "listingType=Invalid&propertyType=Commercial",
+        "listingType=Sale&listingType=Rent&propertyType=House&propertyType=Apartment",
+        ...["0", "-1", "1.5", "bad", "2147483648", "2&page=3"].map(
+          (page) => `page=${page}`
+        ),
+      ]) {
+        await request.delete(observedRequestsUrl);
+        await page.goto(`/${locale}/listings?${query}`);
+        await expect(page.getByRole("article")).toHaveCount(4);
+        await expect(page.getByRole("searchbox")).toHaveValue("");
+        for (const control of await page.getByRole("combobox").all())
+          await expect(control).toHaveValue("");
+        await expectListingsRequest(request, { lang: locale, pageSize: "20" });
+      }
+      await request.delete(observedRequestsUrl);
+      await page.goto(
+        `/${locale}/listings?q=%20Paged%20&listingType=Rent&propertyType=House&page=2&lang=${locale === "en" ? "mk" : "en"}&pageSize=99&sort=priceAsc&unknown=value`
+      );
+      await expect(page.getByRole("article")).toHaveCount(1);
+      await expect(page.getByRole("article")).toContainText(
+        "Paged family house 21"
+      );
+      await expect(page.getByRole("searchbox")).toHaveValue("Paged");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.listingType })
+      ).toHaveValue("Rent");
+      await expect(
+        page.getByRole("combobox", { name: dictionary.listings.propertyType })
+      ).toHaveValue("House");
+      await expectListingsRequest(request, {
+        lang: locale,
+        pageSize: "20",
+        page: "2",
+        q: "Paged",
+        listingType: "Rent",
+        propertyType: "House",
+      });
+      await expect(
+        page
+          .getByRole("navigation", { name: dictionary.listings.pagination })
+          .getByRole("link", { name: dictionary.listings.previousPage })
+      ).toHaveAttribute(
+        "href",
+        `/${locale}/listings?listingType=Rent&propertyType=House&q=Paged`
+      );
+      expect(browserRequests).toEqual([]);
+    } finally {
+      await request.delete(observedRequestsUrl);
+    }
+  });
+}
 
 for (const { locale, dictionary } of localeCases) {
   for (const theme of ["light", "dark"] as const) {
@@ -37,6 +229,7 @@ for (const { locale, dictionary } of localeCases) {
           [320, 1],
           [360, 1],
           [390, 1],
+          [640, 1],
           [768, 2],
           [1024, 2],
           [1280, 3],
@@ -266,7 +459,12 @@ for (const { locale, dictionary } of localeCases) {
         }
         await request.post(`${failure}?lang=${locale}&mode=server`);
         await page.goto(`/${locale}/listings`);
-        await expect(page.getByRole("alert")).toBeVisible();
+        await expect(
+          page.getByRole("alert", {
+            name: dictionary.listings.failure.title,
+            exact: true,
+          })
+        ).toBeVisible();
         await checkTargets();
         const scan = await new AxeBuilder({ page })
           .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
@@ -1678,7 +1876,9 @@ test("catalog grid reflows in backend order without clipping long content", asyn
 test("previous and next preserve filtered catalog state and backend page identities", async ({
   page,
   baseURL,
+  request,
 }) => {
+  test.setTimeout(60_000);
   const browserApiRequests: string[] = [];
   page.on("request", (request) => {
     if (new URL(request.url()).port === "5231") {
@@ -1686,9 +1886,63 @@ test("previous and next preserve filtered catalog state and backend page identit
     }
   });
 
-  const firstUrl = `${baseURL}/en/listings?q=Paged&listingType=Rent&propertyType=House`;
+  await request.delete(observedRequestsUrl);
+  await page.goto("/en/listings");
+  await expect(page.getByRole("article")).toHaveCount(4);
+  await expect(
+    page.getByRole("region", { name: en.listings.results })
+  ).toContainText("4 properties found");
+  await expectListingsRequest(request, { lang: "en", pageSize: "20" });
+  const keyword = page.getByRole("searchbox", {
+    name: en.listings.searchLabel,
+  });
+  await request.delete(observedRequestsUrl);
+  await keyword.fill(" Paged ");
+  await keyword.press("Enter");
+  await expect(page.getByRole("article")).toHaveCount(20);
+  await expect(keyword).toHaveValue("Paged");
+  expect(new URL(page.url()).searchParams.get("q")?.trim()).toBe("Paged");
+  await expectListingsRequest(request, {
+    lang: "en",
+    pageSize: "20",
+    q: "Paged",
+  });
+  await request.delete(observedRequestsUrl);
+  await page.reload();
+  await expect(keyword).toHaveValue("Paged");
+  await expectListingsRequest(request, {
+    lang: "en",
+    pageSize: "20",
+    q: "Paged",
+  });
+  await page
+    .getByRole("navigation", { name: en.listings.pagination })
+    .getByRole("link", { name: en.listings.nextPage })
+    .click();
+  await expect(page.getByRole("article")).toHaveCount(1);
+  await expect(page.getByRole("article")).toContainText(
+    "Paged family house 21"
+  );
+  await page
+    .getByRole("combobox", { name: en.listings.listingType })
+    .selectOption("Rent");
+  await page
+    .getByRole("combobox", { name: en.listings.propertyType })
+    .selectOption("House");
+  await request.delete(observedRequestsUrl);
+  await page
+    .getByRole("button", { name: en.listings.search, exact: true })
+    .click();
+  await expect(page.getByRole("article")).toHaveCount(20);
+  expect(new URL(page.url()).searchParams.has("page")).toBe(false);
+  await expectListingsRequest(request, {
+    lang: "en",
+    pageSize: "20",
+    q: "Paged",
+    listingType: "Rent",
+    propertyType: "House",
+  });
   const canonicalFirstUrl = `${baseURL}/en/listings?listingType=Rent&propertyType=House&q=Paged`;
-  await page.goto(firstUrl);
   const cards = page
     .getByRole("region", { name: en.listings.results })
     .getByRole("article");
@@ -1706,6 +1960,7 @@ test("previous and next preserve filtered catalog state and backend page identit
     pagination.getByRole("link", { name: en.listings.previousPage })
   ).toHaveCount(0);
 
+  await request.delete(observedRequestsUrl);
   await pagination.getByRole("link", { name: en.listings.nextPage }).click();
   await expect(page).toHaveURL(/page=2/);
   const secondUrl = new URL(page.url());
@@ -1718,6 +1973,14 @@ test("previous and next preserve filtered catalog state and backend page identit
   expect(secondUrl.searchParams.has("lang")).toBe(false);
   await expect(cards).toHaveCount(1);
   await expect(cards.first()).toContainText("Paged family house 21");
+  await expectListingsRequest(request, {
+    lang: "en",
+    pageSize: "20",
+    page: "2",
+    q: "Paged",
+    listingType: "Rent",
+    propertyType: "House",
+  });
   await expect(pagination).toContainText("Page 2 of 2");
   await expect(
     pagination.getByRole("link", { name: en.listings.nextPage })
@@ -1752,6 +2015,32 @@ test("previous and next preserve filtered catalog state and backend page identit
   await expect(page).toHaveURL(secondUrl.toString());
   await expect(cards).toHaveCount(1);
   await expect(cards.first()).toContainText("Paged family house 21");
+  const preservedQuery = new URL(page.url()).search;
+  await request.delete(observedRequestsUrl);
+  await page
+    .getByRole("navigation", { name: en.locale.label })
+    .getByRole("link", { name: en.locale.mk, exact: true })
+    .click();
+  await expect(page).toHaveURL(`${baseURL}/mk/listings${preservedQuery}`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: mk.listings.title,
+      exact: true,
+    })
+  ).toBeVisible();
+  await expect(page.getByRole("article")).toContainText(
+    "Paged family house 21"
+  );
+  await expectListingsRequest(request, {
+    lang: "mk",
+    pageSize: "20",
+    page: "2",
+    q: "Paged",
+    listingType: "Rent",
+    propertyType: "House",
+  });
+  await request.delete(observedRequestsUrl);
   expect(browserApiRequests).toEqual([]);
 });
 
