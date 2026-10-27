@@ -110,6 +110,7 @@ const stressListings = listings.map((listing, index) => ({
             : "Municipality with a deliberately long display name",
         price: 9876543210000.99,
         areaSquareMeters: 1234567890.25,
+        pricePerSquareMeter: 8000,
         rooms: null,
       }
     : {}),
@@ -125,6 +126,7 @@ let listingsRequests = 0;
 let emptyCatalogLocale = null;
 let listingsFailure = null;
 let stressCatalogLocale = null;
+let observedListingsRequests = [];
 
 function releaseListingsGate() {
   if (listingsGate) {
@@ -136,6 +138,25 @@ function releaseListingsGate() {
 
 createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost:5231");
+  if (url.pathname === "/__test/listings-requests") {
+    if (request.method === "GET") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify(observedListingsRequests));
+    } else if (request.method === "DELETE") {
+      observedListingsRequests = [];
+      response.writeHead(204).end();
+    } else response.writeHead(405).end();
+    return;
+  }
+  if (url.pathname === "/api/listings") {
+    observedListingsRequests.push({
+      method: request.method,
+      path: url.pathname,
+      query: [...url.searchParams],
+      hasAuthorization: request.headers.authorization !== undefined,
+      hasRequestId: request.headers["x-request-id"] !== undefined,
+    });
+  }
   if (url.pathname === "/__test/catalog-stress") {
     if (
       request.method === "POST" &&
@@ -272,9 +293,9 @@ createServer(async (request, response) => {
     !validKeys ||
     !["mk", "en"].includes(searchParams.get("lang")) ||
     searchParams.get("pageSize") !== "20" ||
-    ![null, "", "Family", "Paged"].includes(q) ||
-    ![null, "", "Sale", "Rent"].includes(listingType) ||
-    ![null, "", "Apartment", "House"].includes(propertyType) ||
+    ![null, "Family", "Paged"].includes(q) ||
+    ![null, "Sale", "Rent"].includes(listingType) ||
+    ![null, "Apartment", "House"].includes(propertyType) ||
     !/^[1-9][0-9]*$/.test(requestedPage) ||
     !Number.isSafeInteger(page) ||
     page > 2147483647
