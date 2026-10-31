@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 import type { PublicListingsSearchState } from "../search/public-listings-search";
 import { PublicListingsFormStatus } from "./public-listings-form-status";
+import { PublicListingsCommittedControls } from "./public-listings-committed-controls";
 
 type SearchLabels = Pick<
   Dictionary["listings"],
@@ -61,11 +62,17 @@ export function PublicListingsSearchForm({
     <div className="mt-10 max-w-5xl">
       <Form
         action={routes.listings(locale)}
+        // Next 16.3 prefetch can reuse query-dependent catalog metadata across URLs.
+        prefetch={false}
         role="search"
         aria-label={labels.search}
         className="border-border bg-surface rounded-lg border p-5 sm:p-6"
       >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)_minmax(14rem,1fr)_auto] lg:items-end">
+        <PublicListingsCommittedControls
+          // New server defaults also reset controls when normalized state changes.
+          key={JSON.stringify([locale, search])}
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)_minmax(14rem,1fr)_auto] lg:items-end"
+        >
           <div className="min-w-0 sm:col-span-2 lg:col-span-1">
             <label htmlFor={inputId} className="block font-semibold">
               {labels.searchLabel}
@@ -127,7 +134,7 @@ export function PublicListingsSearchForm({
           <Button type="submit" className="sm:col-span-2 lg:col-span-1">
             {labels.search}
           </Button>
-        </div>
+        </PublicListingsCommittedControls>
         {error && (
           <p id={errorId} className="text-destructive mt-3 text-sm">
             {error}
@@ -146,6 +153,7 @@ export function PublicListingsSearchForm({
         search.filters.propertyType) && (
         <Link
           href={routes.listings(locale)}
+          prefetch={false}
           className="text-primary focus-visible:outline-focus-ring mt-3 inline-flex min-h-11 items-center rounded-md font-medium underline underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-2"
         >
           {search.filters.listingType || search.filters.propertyType

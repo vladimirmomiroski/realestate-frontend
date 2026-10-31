@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
-import { getEquivalentLocalePath } from "@/config/routes";
+import { getEquivalentLocalePath, routes } from "@/config/routes";
 import { useClientDictionary, useCurrentLocale } from "@/i18n/client-context";
 import { locales } from "@/i18n/config";
 
@@ -28,6 +28,11 @@ export function LocaleSwitcher() {
                   searchParams.toString()
                 )}
                 hrefLang={locale}
+                prefetch={
+                  pathname === routes.listings(currentLocale)
+                    ? false
+                    : undefined
+                }
                 lang={locale}
                 aria-current={isCurrent ? "page" : undefined}
                 className={`inline-flex min-h-11 items-center rounded-md px-3 py-2 text-sm font-semibold ${

@@ -66,6 +66,7 @@ export function PublicListingsEmptyState({
       </p>
       {recovery && (
         <Link
+          prefetch={false}
           href={recovery.href}
           className="text-primary focus-visible:outline-focus-ring mt-3 inline-flex min-h-11 items-center rounded-md font-medium underline underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-2"
         >

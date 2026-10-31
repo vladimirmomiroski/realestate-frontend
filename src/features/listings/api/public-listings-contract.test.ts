@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatPrice,
+  formatPricePerSquareMeter,
+} from "../utils/listing-formatters";
+
+import {
   parsePublicListingsResponse,
   type PublicListingsSuccessBody,
 } from "./public-listings-contract";
@@ -52,6 +57,43 @@ function responseWith(
 }
 
 describe("parsePublicListingsResponse", () => {
+  it.each([
+    "euros",
+    "",
+    "EU",
+    "EURO",
+    "€",
+    "EU1",
+    "ЕUR",
+    " EUR",
+    "EUR ",
+    "EUR\n",
+    "u$d",
+  ])("rejects malformed currency %j before formatting", (currency) => {
+    expect(() =>
+      parsePublicListingsResponse(responseWith({ currency }))
+    ).toThrow("Invalid public listings response at items[0].currency.");
+  });
+
+  it.each(["EUR", "MKD", "XAU", "XTS", "ZZZ", "eur"])(
+    "preserves syntactically valid currency %s and safely formats it in both locales",
+    (currency) => {
+      const card = parsePublicListingsResponse(responseWith({ currency }))
+        .items[0]!;
+      expect(card.currency).toBe(currency);
+      for (const locale of ["mk", "en"] as const) {
+        expect(formatPrice(card.price, card.currency, locale)).toBeTruthy();
+        expect(
+          formatPricePerSquareMeter(
+            card.pricePerSquareMeter,
+            card.currency,
+            locale
+          )
+        ).toBeTruthy();
+      }
+    }
+  );
+
   it("maps a representative generated success page into the narrow card model", () => {
     expect(parsePublicListingsResponse(validResponse)).toEqual({
       items: [

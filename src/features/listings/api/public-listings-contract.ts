@@ -41,6 +41,18 @@ function readNumber(value: unknown, path: string) {
   return value;
 }
 
+function readCurrency(value: unknown, path: string) {
+  if (
+    typeof value !== "string" ||
+    value.length !== 3 ||
+    !/^[A-Za-z]{3}$/.test(value)
+  ) {
+    invalid(path);
+  }
+
+  return value;
+}
+
 function readCoordinate(
   value: unknown,
   path: string,
@@ -175,7 +187,7 @@ function mapListing(value: unknown, index: number): PublicListingCard {
       `${path}.propertyType`
     ),
     price: readNumber(listing.price, `${path}.price`),
-    currency: readString(listing.currency, `${path}.currency`),
+    currency: readCurrency(listing.currency, `${path}.currency`),
     areaSquareMeters: readNumber(
       listing.areaSquareMeters,
       `${path}.areaSquareMeters`

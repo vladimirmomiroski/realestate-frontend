@@ -30,6 +30,9 @@ export function PublicHeader({ dictionary, locale }: PublicHeaderProps) {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  prefetch={
+                    item.href === routes.listings(locale) ? false : undefined
+                  }
                   className="hover:bg-surface-muted inline-flex min-h-11 items-center rounded-md px-3 py-2 font-medium"
                 >
                   {dictionary.navigation[item.labelKey]}

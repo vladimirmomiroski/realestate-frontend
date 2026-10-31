@@ -82,6 +82,23 @@ afterEach(() => {
 });
 
 describe("getPublicListings", () => {
+  it("classifies malformed currency through the production parser and preserves the genuine request ID", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        { ...successPage, items: [{ ...listing, currency: "euros" }] },
+        { headers: { "X-Request-ID": "currency-response-request-id" } }
+      )
+    );
+
+    await expect(getPublicListings({ locale: "en" })).rejects.toMatchObject({
+      kind: "malformed-response",
+      reason: "invalid-success-body",
+      status: 200,
+      requestId: "currency-response-request-id",
+    } satisfies Partial<MalformedApiResponseError>);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it.each(["mk", "en"] as const)(
     "retrieves the anonymous public page for route locale %s",
     async (locale) => {

@@ -1,17 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("next/headers", () => ({ headers: vi.fn() }));
 vi.mock("@/features/listings/api/get-public-listings.server", () => ({
   getPublicListings: vi.fn(),
 }));
 
 import { getPublicListings } from "@/features/listings/api/get-public-listings.server";
+import { headers } from "next/headers";
 import { en } from "@/i18n/dictionaries/en";
 import { mk } from "@/i18n/dictionaries/mk";
 
 import { generateMetadata } from "./page";
 
 beforeEach(() => {
+  vi.mocked(headers).mockResolvedValue(new Headers());
   vi.spyOn(globalThis, "fetch").mockRejectedValue(
     new Error("Metadata must not fetch")
   );
@@ -73,6 +76,20 @@ for (const { locale, dictionary } of [
       expect(metadata.description).toBe(
         dictionary.metadata.listings.description
       );
+      expect(getPublicListings).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it("uses Proxy's original query-presence signal when Next loses a special key", async () => {
+      vi.mocked(headers).mockResolvedValue(
+        new Headers({ "x-realestate-catalog-query": "1" })
+      );
+      const metadata = await generateMetadata({
+        params: Promise.resolve({ locale }),
+        searchParams: Promise.resolve({}),
+      });
+      expect(metadata.robots).toEqual({ index: false, follow: true });
+      expect(metadata.alternates).toEqual(cleanAlternates);
       expect(getPublicListings).not.toHaveBeenCalled();
       expect(fetch).not.toHaveBeenCalled();
     });

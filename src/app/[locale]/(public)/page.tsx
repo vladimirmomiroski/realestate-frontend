@@ -35,6 +35,7 @@ export default async function HomePage({ params }: HomePageProps) {
         </p>
         <Link
           href={routes.listings(locale)}
+          prefetch={false}
           className="bg-primary text-on-primary hover:bg-primary/95 mt-8 inline-flex min-h-11 items-center justify-center rounded-md px-5 py-2.5 font-semibold shadow-sm"
         >
           {dictionary.home.browseListings}

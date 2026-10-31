@@ -45,6 +45,22 @@ export function proxy(request: NextRequest) {
   const pathLocale = getPathLocale(pathname);
 
   if (pathLocale) {
+    if (pathname === `/${pathLocale}/listings`) {
+      const headers = new Headers(request.headers);
+      // skipProxyUrlNormalize preserves the original query and RSC header.
+      // RSC: 1 selects Flight, not an HTML document; only that representation
+      // adds _rsc as a transport cache key. Prefetch hints alone are not enough.
+      const flight = request.headers.get("rsc") === "1";
+      const hasQuery = [...new URL(request.url).searchParams.keys()].some(
+        (key) => !flight || key !== "_rsc"
+      );
+      // Always overwrite client input before forwarding to metadata.
+      headers.set("x-realestate-catalog-query", hasQuery ? "1" : "0");
+      return persistLocale(
+        NextResponse.next({ request: { headers } }),
+        pathLocale
+      );
+    }
     return persistLocale(NextResponse.next(), pathLocale);
   }
 
@@ -52,7 +68,7 @@ export function proxy(request: NextRequest) {
     cookieLocale: request.cookies.get(localeCookieName)?.value,
     acceptLanguage: request.headers.get("accept-language"),
   });
-  const redirectUrl = request.nextUrl.clone();
+  const redirectUrl = new URL(request.url);
 
   redirectUrl.pathname = `/${locale}${pathname === "/" ? "" : pathname}`;
 

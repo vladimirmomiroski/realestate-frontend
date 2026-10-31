@@ -21,6 +21,397 @@ const localeCases = [
 
 const observedRequestsUrl = "http://localhost:5231/__test/listings-requests";
 
+for (const { locale, dictionary } of localeCases) {
+  test(`${locale} enhanced form and locale navigation apply destination metadata`, async ({
+    page,
+    baseURL,
+  }) => {
+    await page.goto(`/${locale}/listings`);
+    await expectCatalogMetadata(page, locale, dictionary, baseURL!, true);
+    const documents: string[] = [];
+    const flights: string[] = [];
+    page.on("request", (request) => {
+      if (request.isNavigationRequest()) documents.push(request.url());
+      if (request.headers().rsc === "1") flights.push(request.url());
+    });
+
+    await page.getByRole("searchbox").fill("Family");
+    await page.locator('select[name="listingType"]').selectOption("Rent");
+    await page.locator('select[name="propertyType"]').selectOption("House");
+    await page.getByRole("searchbox").press("Enter");
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("q") === "Family"
+    );
+    await expect(page.getByRole("article")).toHaveCount(1);
+    await expect(
+      page.getByRole("article", { name: "Family house" })
+    ).toBeVisible();
+    await expectCatalogMetadata(page, locale, dictionary, baseURL!, false);
+
+    // Empty GET fields still constitute a query-bearing URL.
+    await page.getByRole("searchbox").fill("");
+    await page.locator('select[name="listingType"]').selectOption("");
+    await page.locator('select[name="propertyType"]').selectOption("");
+    await page.getByRole("searchbox").press("Enter");
+    await expect(page).toHaveURL((url) => url.searchParams.get("q") === "");
+    await expect(page.getByRole("article")).toHaveCount(4);
+    await expectCatalogMetadata(page, locale, dictionary, baseURL!, false);
+
+    const otherLocale = locale === "en" ? "mk" : "en";
+    const otherDictionary = otherLocale === "en" ? en : mk;
+    await page.locator(`a[hreflang="${otherLocale}"]`).click();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === `/${otherLocale}/listings` &&
+        url.searchParams.get("q") === ""
+    );
+    await expectCatalogMetadata(
+      page,
+      otherLocale,
+      otherDictionary,
+      baseURL!,
+      false
+    );
+    await page
+      .getByRole("navigation", {
+        name: otherDictionary.accessibility.primaryNavigation,
+      })
+      .getByRole("link", {
+        name: otherDictionary.navigation.listings,
+        exact: true,
+      })
+      .click();
+    await expect(page).toHaveURL(`${baseURL}/${otherLocale}/listings`);
+    await expect(page.getByRole("article")).toHaveCount(4);
+    await expectCatalogMetadata(
+      page,
+      otherLocale,
+      otherDictionary,
+      baseURL!,
+      true
+    );
+    await page.goBack();
+    await expect(page).toHaveURL((url) => url.searchParams.get("q") === "");
+    await expect(page.getByRole("article")).toHaveCount(4);
+    await expectCatalogMetadata(
+      page,
+      otherLocale,
+      otherDictionary,
+      baseURL!,
+      false
+    );
+    await page.goForward();
+    await expect(page).toHaveURL(`${baseURL}/${otherLocale}/listings`);
+    await expect(page.getByRole("article")).toHaveCount(4);
+    await expectCatalogMetadata(
+      page,
+      otherLocale,
+      otherDictionary,
+      baseURL!,
+      true
+    );
+    expect(documents).toEqual([]);
+    expect(flights.length).toBeGreaterThan(0);
+  });
+
+  test(`${locale} spoofed transport hints cannot make query-bearing HTML indexable`, async ({
+    request,
+    baseURL,
+  }) => {
+    const cases: Record<string, string>[] = [
+      { rsc: "0" },
+      { rsc: "false" },
+      { rsc: "1, 1" },
+      { "next-router-prefetch": "1" },
+      { "next-router-segment-prefetch": "/_tree" },
+      { "x-nextjs-data": "1" },
+      { rsc: "1" },
+      { rsc: "1", "next-router-prefetch": "1" },
+      { rsc: "1", "x-now-route-matches": "locale=en" },
+    ];
+    let documents = 0;
+    let flights = 0;
+    for (const headers of cases) {
+      for (const query of [
+        "?_rsc=",
+        "?_rsc=x",
+        "?%5Frsc=x",
+        "?nxtPq=x",
+        "?nxtIfoo=x",
+        "?__proto__=x",
+      ]) {
+        const response = await request.get(`/${locale}/listings${query}`, {
+          maxRedirects: 0,
+          headers: {
+            ...headers,
+            "x-realestate-catalog-query": "0",
+            accept: "text/html",
+          },
+        });
+        const body = await response.text();
+        if (response.status() === 307) {
+          // Next rejects mismatched Flight cache keys before rendering. Encoded
+          // reserved keys can loop if followed; probe the bounded response.
+          expect(headers.rsc).toBe("1");
+          expect(new URL(response.headers().location!, baseURL).origin).toBe(
+            baseURL
+          );
+          expect(body).not.toContain('<meta name="robots"');
+          continue;
+        }
+        expect(response.status()).toBe(200);
+        if (response.headers()["content-type"]?.includes("text/x-component")) {
+          flights += 1;
+          // A caller can request Flight, but that is not an indexable HTML document.
+          expect(body).not.toContain("<!DOCTYPE html>");
+        } else {
+          documents += 1;
+          expect(response.headers()["content-type"]).toContain("text/html");
+          expect(
+            body.match(/<meta name="robots" content="[^"]*"\s*\/?>/g)
+          ).toEqual(['<meta name="robots" content="noindex, follow"/>']);
+          expect(body).toContain(
+            `<link rel="canonical" href="${baseURL}/${locale}/listings"`
+          );
+        }
+      }
+    }
+    expect(documents).toBeGreaterThan(0);
+    expect(flights).toBeGreaterThan(0);
+    // A client-controlled origin hint must not change the locale redirect origin.
+    const redirect = await request.get("/listings?_rsc=x", {
+      maxRedirects: 0,
+      headers: {
+        "accept-language": locale,
+        "x-forwarded-host": "attacker.example",
+        "x-forwarded-proto": "https",
+      },
+    });
+    expect(redirect.status()).toBe(307);
+    expect(new URL(redirect.headers().location!, baseURL).href).toBe(
+      `${baseURL}/${locale}/listings?_rsc=x`
+    );
+  });
+
+  test(`${locale} enhanced clear-search navigation restores clean indexing`, async ({
+    page,
+    baseURL,
+  }) => {
+    await page.goto(`/${locale}/listings?q=Family`);
+    await expectCatalogMetadata(page, locale, dictionary, baseURL!, false);
+    await page
+      .getByRole("link", { name: dictionary.listings.clearSearch, exact: true })
+      .click();
+    await expect(page).toHaveURL(`${baseURL}/${locale}/listings`);
+    await expect(page.getByRole("article")).toHaveCount(4);
+    await expectCatalogMetadata(page, locale, dictionary, baseURL!, true);
+    await page.goBack();
+    await expect(page).toHaveURL(`${baseURL}/${locale}/listings?q=Family`);
+    await expect(page.getByRole("article")).toHaveCount(1);
+    await expectCatalogMetadata(page, locale, dictionary, baseURL!, false);
+    await page.goForward();
+    await expect(page).toHaveURL(`${baseURL}/${locale}/listings`);
+    await expect(page.getByRole("article")).toHaveCount(4);
+    await expectCatalogMetadata(page, locale, dictionary, baseURL!, true);
+  });
+
+  test(`${locale} resets dirty controls across raw URLs with equivalent normalized filters`, async ({
+    page,
+    baseURL,
+  }) => {
+    const malformed = `/${locale}/listings?listingType=Invalid&listingType=Rent&page=bad`;
+    await page.goto(malformed);
+    const keyword = page.getByRole("searchbox");
+    const listing = page.getByRole("combobox", {
+      name: dictionary.listings.listingType,
+    });
+    const property = page.getByRole("combobox", {
+      name: dictionary.listings.propertyType,
+    });
+    const dirty = async () => {
+      await keyword.fill("Family");
+      await listing.selectOption("Sale");
+      await property.selectOption("House");
+      // Moving focus and changing another field must not reset unsent edits.
+      await keyword.press("Tab");
+      await expect(keyword).toHaveValue("Family");
+      await expect(listing).toHaveValue("Sale");
+      await expect(property).toHaveValue("House");
+    };
+    const committed = async (path: string) => {
+      await expect(page).toHaveURL(`${baseURL}${path}`);
+      await expect(keyword).toHaveValue("");
+      await expect(listing).toHaveValue("");
+      await expect(property).toHaveValue("");
+      await expect(page.getByRole("article")).toHaveCount(4);
+      await expect(page.getByRole("article").first()).toHaveAccessibleName(
+        "Стан во Центар"
+      );
+    };
+    await committed(malformed);
+    await dirty();
+    await page
+      .getByRole("navigation", {
+        name: dictionary.accessibility.primaryNavigation,
+      })
+      .getByRole("link", { name: dictionary.navigation.listings, exact: true })
+      .click();
+    await committed(`/${locale}/listings`);
+    await dirty();
+    await page.goBack();
+    await committed(malformed);
+    await dirty();
+    await page.goForward();
+    await committed(`/${locale}/listings`);
+
+    // Supported History API navigation retains raw encoding even where
+    // URLSearchParams serialization would make the two URLs identical.
+    for (const query of ["?ignored=a%20b", "?ignored=a+b", "?ignored=%61+b"]) {
+      await dirty();
+      await page.evaluate(
+        (url) => window.history.pushState(null, "", url),
+        `/${locale}/listings${query}`
+      );
+      await committed(`/${locale}/listings${query}`);
+    }
+    await dirty();
+    await page.goBack();
+    await committed(`/${locale}/listings?ignored=a+b`);
+    await dirty();
+    await page.goForward();
+    await committed(`/${locale}/listings?ignored=%61+b`);
+  });
+
+  test(`${locale} restores committed filters after dirty pagination and history navigation`, async ({
+    page,
+  }) => {
+    await page.goto(
+      `/${locale}/listings?q=Paged&listingType=Rent&propertyType=House`
+    );
+    const keyword = page.getByRole("searchbox");
+    const listingType = page.getByRole("combobox", {
+      name: dictionary.listings.listingType,
+    });
+    const propertyType = page.getByRole("combobox", {
+      name: dictionary.listings.propertyType,
+    });
+    const dirty = async () => {
+      await keyword.fill("Family");
+      await listingType.selectOption("Sale");
+      await propertyType.selectOption("Apartment");
+      await expect(keyword).toHaveValue("Family");
+      await expect(listingType).toHaveValue("Sale");
+      await expect(propertyType).toHaveValue("Apartment");
+    };
+    const committed = async (number: number) => {
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname === `/${locale}/listings` &&
+          url.searchParams.get("q") === "Paged" &&
+          url.searchParams.get("listingType") === "Rent" &&
+          url.searchParams.get("propertyType") === "House" &&
+          (url.searchParams.get("page") ?? "1") === String(number)
+      );
+      await expect(page.getByRole("article")).toHaveCount(
+        number === 1 ? 20 : 1
+      );
+      await expect(page.getByRole("article").first()).toContainText(
+        number === 1 ? "Paged family house 01" : "Paged family house 21"
+      );
+      await expect(keyword).toHaveValue("Paged");
+      await expect(listingType).toHaveValue("Rent");
+      await expect(propertyType).toHaveValue("House");
+    };
+    await committed(1);
+    await dirty();
+    await page
+      .getByRole("link", { name: dictionary.listings.nextPage, exact: true })
+      .click();
+    await committed(2);
+    await dirty();
+    await page
+      .getByRole("link", {
+        name: dictionary.listings.previousPage,
+        exact: true,
+      })
+      .click();
+    await committed(1);
+    await dirty();
+    await page.goBack();
+    await committed(2);
+    await dirty();
+    await page.goForward();
+    await committed(1);
+  });
+
+  test(`${locale} raw query presence controls HTTP metadata without JavaScript or trusted client headers`, async ({
+    browser,
+    baseURL,
+  }) => {
+    test.setTimeout(90_000);
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    try {
+      for (const query of [
+        "",
+        "?q=Family",
+        "?unknown=value",
+        "?__proto__=x",
+        "?%5F%5Fproto%5F%5F=x",
+        "?__proto__",
+        "?constructor=x",
+        "?toString=x",
+        "?_rsc=x",
+        "?%5Frsc=x",
+        "?nxtPq=x",
+        "?nxtIfoo=x",
+        "?%6ExtPq=x",
+        "?nxtP=x",
+        "?nxtI=x",
+        "?unknown=&unknown=x",
+        "?_rsc=&_rsc=x",
+        "?q=",
+      ]) {
+        // Attempt to spoof the opposite policy; Proxy must replace this value.
+        await context.setExtraHTTPHeaders({
+          "x-realestate-catalog-query": query ? "0" : "1",
+        });
+        const response = await page.goto(
+          `${baseURL}/${locale}/listings${query}`
+        );
+        expect(response?.status()).toBe(200);
+        expect(response?.headers()["content-type"]).toContain("text/html");
+        const robots = query ? "noindex, follow" : "index, follow";
+        const html = await response!.text();
+        expect(
+          html.match(/<meta name="robots" content="[^"]*"\s*\/?>/g)
+        ).toEqual([`<meta name="robots" content="${robots}"/>`]);
+        await expect(page.locator('meta[name="robots"]')).toHaveCount(1);
+        await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+          "content",
+          robots
+        );
+        await expect(page).toHaveTitle(dictionary.metadata.listings.title);
+        await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+          "href",
+          `${baseURL}/${locale}/listings`
+        );
+        for (const language of ["mk", "en"]) {
+          await expect(
+            page.locator(`link[rel="alternate"][hreflang="${language}"]`)
+          ).toHaveAttribute("href", `${baseURL}/${language}/listings`);
+        }
+        await expect(page.getByRole("article")).toHaveCount(
+          query === "?q=Family" ? 1 : 4
+        );
+        await expect(page.getByRole("article").first()).toBeVisible();
+      }
+    } finally {
+      await context.close();
+    }
+  });
+}
+
 test.afterEach(async ({ request }) => {
   await request.delete(observedRequestsUrl);
 });
