@@ -1,6 +1,12 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
+  usePathname: () => window.location.pathname,
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
 
 import { en } from "@/i18n/dictionaries/en";
 import { mk } from "@/i18n/dictionaries/mk";
@@ -14,6 +20,105 @@ const locales = [
 ] as const;
 
 describe("PublicListingsSearchForm", () => {
+  beforeEach(() => window.history.replaceState(null, "", "/en/listings"));
+
+  it.each(locales)(
+    "resets $locale raw-URL changes but retains edits on same-URL rerenders",
+    async ({ locale, dictionary }) => {
+      const user = userEvent.setup();
+      const form = () => (
+        <PublicListingsSearchForm
+          locale={locale}
+          labels={dictionary.listings}
+          search={parsePublicListingsSearchParams({})}
+        />
+      );
+      window.history.replaceState(
+        null,
+        "",
+        `/${locale}/listings?ignored=a%20b`
+      );
+      const { rerender } = render(form());
+      for (const query of [
+        "?ignored=a+b",
+        "?listingType=Invalid&listingType=Rent&page=bad",
+        "",
+      ]) {
+        await user.clear(screen.getByRole("searchbox"));
+        await user.type(screen.getByRole("searchbox"), "Family");
+        await user.selectOptions(
+          screen.getByRole("combobox", {
+            name: dictionary.listings.listingType,
+          }),
+          "Sale"
+        );
+        rerender(form());
+        expect(screen.getByRole("searchbox")).toHaveValue("Family");
+        expect(
+          screen.getByRole("combobox", {
+            name: dictionary.listings.listingType,
+          })
+        ).toHaveValue("Sale");
+        window.history.pushState(null, "", `/${locale}/listings${query}`);
+        rerender(form());
+        expect(screen.getByRole("searchbox")).toHaveValue("");
+        expect(
+          screen.getByRole("combobox", {
+            name: dictionary.listings.listingType,
+          })
+        ).toHaveValue("");
+      }
+    }
+  );
+  it.each(locales)(
+    "resets dirty controls when committed $locale page state changes",
+    async ({ locale, dictionary }) => {
+      const user = userEvent.setup();
+      const filters = {
+        q: "Paged",
+        listingType: "Rent",
+        propertyType: "House",
+      };
+      const form = (page: string) => (
+        <PublicListingsSearchForm
+          locale={locale}
+          labels={dictionary.listings}
+          search={parsePublicListingsSearchParams({ ...filters, page })}
+        />
+      );
+      const { rerender } = render(form("1"));
+      for (const page of ["2", "1"]) {
+        await user.clear(screen.getByRole("searchbox"));
+        await user.type(screen.getByRole("searchbox"), "Family");
+        await user.selectOptions(
+          screen.getByRole("combobox", {
+            name: dictionary.listings.listingType,
+          }),
+          "Sale"
+        );
+        await user.selectOptions(
+          screen.getByRole("combobox", {
+            name: dictionary.listings.propertyType,
+          }),
+          "Apartment"
+        );
+        expect(screen.getByRole("searchbox")).toHaveValue("Family");
+        rerender(form(page));
+        expect(screen.getByRole("searchbox")).toHaveValue("Paged");
+        expect(
+          screen.getByRole("combobox", {
+            name: dictionary.listings.listingType,
+          })
+        ).toHaveValue("Rent");
+        expect(
+          screen.getByRole("combobox", {
+            name: dictionary.listings.propertyType,
+          })
+        ).toHaveValue("House");
+      }
+    }
+  );
+
   it.each(locales)(
     "renders the localized $locale form with a named input and clean action",
     ({ locale, dictionary }) => {

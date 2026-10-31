@@ -55,6 +55,7 @@ export function PublicListingsPagination({
         {hasPreviousPage && (
           <Link
             href={publicListingsPageUrl(locale, search, page - 1)}
+            prefetch={false}
             aria-label={labels.previousPage}
             className={linkClassName}
           >
@@ -71,6 +72,7 @@ export function PublicListingsPagination({
         {hasNextPage && (
           <Link
             href={publicListingsPageUrl(locale, search, page + 1)}
+            prefetch={false}
             aria-label={labels.nextPage}
             className={linkClassName}
           >

@@ -24,6 +24,72 @@ function createRequest(
 }
 
 describe("locale proxy", () => {
+  it.each(["mk", "en"])(
+    "derives %s catalog query presence from the original URL, overwriting spoofed headers",
+    (locale) => {
+      for (const query of [
+        "",
+        "?q=Family",
+        "?unknown=value",
+        "?__proto__=x",
+        "?%5F%5Fproto%5F%5F=x",
+        "?__proto__",
+        "?constructor=x",
+        "?_rsc=x",
+        "?%5Frsc=x",
+        "?nxtPq=x",
+        "?nxtIfoo=x",
+        "?unknown=&unknown=x",
+      ]) {
+        const response = proxy(
+          new NextRequest(
+            `https://frontend.example/${locale}/listings${query}`,
+            {
+              headers: {
+                "x-realestate-catalog-query": query ? "0" : "1",
+              },
+            }
+          )
+        );
+        expect(
+          response.headers.get(
+            "x-middleware-request-x-realestate-catalog-query"
+          )
+        ).toBe(query ? "1" : "0");
+        expect(response.headers.get("x-realestate-catalog-query")).toBeNull();
+        expect(response.headers.get("location")).toBeNull();
+        expect(response.cookies.get(localeCookieName)?.value).toBe(locale);
+      }
+    }
+  );
+
+  it.each(["1", "0", "false", "1, 1", ""])(
+    "excludes only the Flight transport key for the exact RSC representation (%j)",
+    (rsc) => {
+      for (const query of [
+        "?_rsc=x",
+        "?%5Frsc=x",
+        "?_rsc=x&nxtPq=x",
+        "?_rsc=x&__proto__=x",
+      ]) {
+        const response = proxy(
+          new NextRequest(`https://frontend.example/en/listings${query}`, {
+            headers: {
+              rsc,
+              "next-router-prefetch": "1",
+              "x-realestate-catalog-query": "0",
+            },
+          })
+        );
+        expect(
+          response.headers.get(
+            "x-middleware-request-x-realestate-catalog-query"
+          )
+        ).toBe(rsc === "1" && !query.includes("&") ? "0" : "1");
+      }
+    }
+  );
+
   it("passes valid locale-prefixed paths and persists the locale", () => {
     const response = proxy(createRequest("/en/listings?page=2"));
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { RefreshErrorState } from "@/components/feedback/refresh-error-state";
@@ -32,9 +33,10 @@ export async function generateMetadata({
     notFound();
   }
 
-  const [dictionary, query] = await Promise.all([
+  const [dictionary, query, requestHeaders] = await Promise.all([
     getDictionary(locale),
     searchParams,
+    headers(),
   ]);
 
   return {
@@ -49,8 +51,13 @@ export async function generateMetadata({
         ])
       ),
     },
-    // URL presence governs indexing, including ignored and default-valued keys.
-    robots: { index: Object.keys(query).length === 0, follow: true },
+    // Proxy preserves original query presence before framework normalization.
+    robots: {
+      index:
+        requestHeaders.get("x-realestate-catalog-query") !== "1" &&
+        Object.keys(query).length === 0,
+      follow: true,
+    },
   };
 }
 
