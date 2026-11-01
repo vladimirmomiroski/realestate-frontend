@@ -12,6 +12,11 @@ export const en = {
       description:
         "Discover homes for sale and rent across North Macedonia with clear property information.",
     },
+    listings: {
+      title: "Properties for sale and rent in North Macedonia",
+      description:
+        "Browse apartments, houses, commercial properties and land for sale or rent across North Macedonia.",
+    },
   },
 
   navigation: {
@@ -56,6 +61,9 @@ export const en = {
     retry: "Try again",
     requestIdLabel: "Support ID",
     copyRequestId: "Copy support ID",
+    requestIdCopied: "Support ID copied.",
+    requestIdCopyFailed:
+      "Unable to copy. Select and copy the support ID above.",
     notFoundTitle: "Page not found",
     notFoundDescription: "The page you requested could not be found.",
     backHome: "Back to home",
@@ -69,14 +77,34 @@ export const en = {
   },
 
   listings: {
+    failure: {
+      title: "Unable to load properties",
+      validation:
+        "The search could not be processed. Please try again or change your search.",
+      server: "The server encountered a problem. Please try again.",
+      http: "Properties could not be loaded. Please try again.",
+      malformed:
+        "The returned listing data could not be displayed. Please try again.",
+      network: "The connection could not be completed. Please try again.",
+    },
     title: "Listings",
     subtitle: "Browse homes for sale and rent across North Macedonia.",
     filters: "Filters",
     results: "Results",
-    emptyTitle: "No listings found",
-    emptyDescription: "Try changing your filters or search area.",
+    emptyTitle: "No matching properties",
+    emptyDescription:
+      "Try another keyword or change the listing or property type.",
+    catalogEmptyTitle: "No properties available",
+    catalogEmptyDescription:
+      "There are currently no properties in this catalog.",
+    emptyPageTitle: "No results on this page",
+    emptyPageDescription:
+      "This page has no listings. Return to the first page to view the matching properties.",
+    firstPage: "Return to the first page",
     listingType: "Listing type",
     propertyType: "Property type",
+    allListingTypes: "All listing types",
+    allPropertyTypes: "All property types",
     price: "Price",
     minPrice: "Minimum price",
     maxPrice: "Maximum price",
@@ -89,12 +117,29 @@ export const en = {
     neighborhood: "Neighborhood",
     status: "Status",
     search: "Search",
+    searchLabel: "Keyword or location",
+    searchHint:
+      "Enter 2–100 characters, or leave blank to browse all listings.",
+    searchTooShort: "Enter at least 2 characters.",
+    searchTooLong: "Enter no more than 100 characters.",
+    searchRepeated: "Use one search keyword.",
+    searchInvalidSummary: "Check the search keyword and try again.",
+    clearSearch: "Clear search",
     reset: "Reset",
     previousPage: "Previous page",
     nextPage: "Next page",
     page: "Page",
+    pagination: "Result pages",
+    navigationPending: "Loading…",
+    pageOf: "Page {page} of {totalPages}",
     totalResults: "Total results",
+    resultCount: {
+      zero: "0 properties found",
+      one: "1 property found",
+      many: "{count} properties found",
+    },
     notSpecified: "Not specified",
+    imageUnavailable: "Image unavailable",
     listingTypes: {
       Sale: "Sale",
       Rent: "Rent",
@@ -102,6 +147,8 @@ export const en = {
     propertyTypes: {
       Apartment: "Apartment",
       House: "House",
+      Commercial: "Commercial",
+      Land: "Land",
     },
     statuses: {
       Draft: "Draft",

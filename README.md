@@ -1,6 +1,6 @@
 # RealEstate Frontend
 
-The public frontend for a real-estate platform focused on North Macedonia. Chapter 1 is complete: the repository now provides the localized, accessible operating foundation for the public product. Chapter 2 will add the first backend-backed listings catalog; the current landing page does not render real listing data or implement authentication, saved searches, maps, dashboards, AI features, or agency workspaces.
+The public frontend for a real-estate platform focused on North Macedonia. Chapter 1 and Chapter 2 implementation through 2P, followed by accepted 2S correctness hardening, are integrated. Checkpoint 2Q reconciles documentation and final verification; independent closeout approval is still required. The landing page remains data-free; `/mk/listings` and `/en/listings` render the public catalog. Authentication, saved searches, maps, dashboards, AI features, and agency workspaces are not implemented.
 
 ## Current foundation
 
@@ -11,12 +11,24 @@ The public frontend for a real-estate platform focused on North Macedonia. Chapt
 - Semantic light/dark tokens, System/Light/Dark theme persistence, keyboard-accessible shell controls, and browser/axe coverage.
 - Server-only environment, media, API transport, ProblemDetails, query, pagination, and generated OpenAPI wire-type foundations.
 
+## Public listings catalog
+
+- Anonymous server-only `GET /api/listings`, route-owned `lang`, fixed page size 20, `cache: "no-store"`, and backend-default newest order.
+- Native GET keyword search and Sale/Rent, Apartment/House filters; normalized shareable URLs, restored controls, and Previous/Next navigation. Unfiltered cards support Apartment, House, Commercial, and Land.
+- Strict response adaptation, backend total counts, actual content-language annotations, deduplicated locations, and responsive one/two/three-column cards.
+- Safe primary media with a stable 4:3 frame and localized missing/rejected/runtime-failure fallback; production image security does not allow loopback optimization.
+- Distinct invalid-search, empty, out-of-range, and classified failure states; current-URL retry and genuine request-ID copying with concurrency protection.
+- Localized metadata: clean catalog documents are `index,follow`; every query-bearing document is `noindex,follow`, with clean locale-specific canonical and language alternatives.
+- Progressive enhancement uses `useFormStatus`/`useLinkStatus` pending feedback, not a route loading skeleton. Catalog-only `prefetch={false}` preserves enhanced navigation while avoiding a reproduced Next.js metadata-lifecycle failure.
+
+Backend API transport configuration stays server-only. Resolved public media resource URLs may appear in image markup. Catalog metadata performs no listing retrieval.
+
 ## Prerequisites
 
 - Node.js 20.9 or later (the installed Next.js package requirement).
 - npm and the committed `package-lock.json`.
 - Chromium for the Playwright suite.
-- The sibling backend only when generating or checking OpenAPI types.
+- The sibling backend for live catalog data or explicit OpenAPI generation/drift checks. Normal verification uses a test-owned HTTP fixture.
 
 Install dependencies with the supported npm workflow:
 
@@ -90,4 +102,4 @@ src/styles/              global baseline and semantic tokens
 tests/e2e/               real-browser Playwright and axe verification
 ```
 
-See `docs/frontend-context.md` for durable architecture and `docs/chapters/chapter-1-frontend-foundation.md` for the completed Chapter 1 record. `docs/frontend-quality-handoff.md` is the live register of verified unresolved frontend issues. Chapter 2 — Public Listings Catalog Vertical Slice is the next product chapter.
+See [frontend context](docs/frontend-context.md) for durable architecture, the [Chapter 1 record](docs/chapters/chapter-1-frontend-foundation.md), and the [Chapter 2 reconciliation](docs/chapters/chapter-2-public-listings-catalog.md#15-closeout-reconciliation-and-verification) for accepted deviations, verification scope, and current limitations. The [quality handoff](docs/frontend-quality-handoff.md) tracks unresolved work. Broader design and Chapter 3 features remain deferred; this closeout does not start them.

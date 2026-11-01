@@ -9,6 +9,10 @@ export type Dictionary = {
       title: string;
       description: string;
     };
+    listings: {
+      title: string;
+      description: string;
+    };
   };
 
   navigation: {
@@ -49,6 +53,8 @@ export type Dictionary = {
     retry: string;
     requestIdLabel: string;
     copyRequestId: string;
+    requestIdCopied: string;
+    requestIdCopyFailed: string;
     notFoundTitle: string;
     notFoundDescription: string;
     backHome: string;
@@ -62,14 +68,29 @@ export type Dictionary = {
   };
 
   listings: {
+    failure: {
+      title: string;
+      validation: string;
+      server: string;
+      http: string;
+      malformed: string;
+      network: string;
+    };
     title: string;
     subtitle: string;
     filters: string;
     results: string;
     emptyTitle: string;
     emptyDescription: string;
+    catalogEmptyTitle: string;
+    catalogEmptyDescription: string;
+    emptyPageTitle: string;
+    emptyPageDescription: string;
+    firstPage: string;
     listingType: string;
     propertyType: string;
+    allListingTypes: string;
+    allPropertyTypes: string;
     price: string;
     minPrice: string;
     maxPrice: string;
@@ -82,12 +103,28 @@ export type Dictionary = {
     neighborhood: string;
     status: string;
     search: string;
+    searchLabel: string;
+    searchHint: string;
+    searchTooShort: string;
+    searchTooLong: string;
+    searchRepeated: string;
+    searchInvalidSummary: string;
+    clearSearch: string;
     reset: string;
     previousPage: string;
     nextPage: string;
     page: string;
+    pagination: string;
+    navigationPending: string;
+    pageOf: string;
     totalResults: string;
+    resultCount: {
+      zero: string;
+      one: string;
+      many: string;
+    };
     notSpecified: string;
+    imageUnavailable: string;
     listingTypes: {
       Sale: string;
       Rent: string;
@@ -95,6 +132,8 @@ export type Dictionary = {
     propertyTypes: {
       Apartment: string;
       House: string;
+      Commercial: string;
+      Land: string;
     };
     statuses: {
       Draft: string;

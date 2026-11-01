@@ -6,21 +6,24 @@ This is the authoritative living handoff for the RealEstate frontend. It records
 
 Use this document for durable project context. Use `docs/chapters/*.md` for implementation-ready chapter specifications. When implementation changes a lasting rule, update this document at chapter closeout so it continues to describe the actual system rather than its history.
 
-The completed backend contracts are authoritative for API behavior. Stale frontend or shared-product documents must not override the current backend context, Chapter 12 contract, or generated OpenAPI document.
+The completed backend contracts are authoritative for API behavior. Stale frontend or shared-product documents must not override the current backend context, definitive backend/frontend handoff, or generated OpenAPI document.
 
 ## 2. Current Status
 
 ```text
-Backend: complete through Chapter 12 and ready for frontend integration
+Backend: Chapter 15 plus accepted 2R contract hardening and provenance-test correction integrated
 Frontend foundation: Chapter 1 complete
 Remaining Chapter 1 checkpoints: none
 Completed chapter record: docs/chapters/chapter-1-frontend-foundation.md
-Next implementation phase: Chapter 2 — Public Listings Catalog Vertical Slice
+Chapter 2 specification and reconciliation: docs/chapters/chapter-2-public-listings-catalog.md
+Chapter 2 implementation: 2A–2P and frontend 2S accepted and integrated
+Current checkpoint: 2Q documentation and final verification; independent closeout audit pending
+Chapter 3: deferred; not started by closeout
 ```
 
 Chapter 1 completed the selective migration to the accepted architecture. The repository now has canonical `/mk` and `/en` routing, server-loaded dictionaries, a narrow client translation boundary, localized metadata, validated environment and media configuration, semantic light/dark styling, an accessible public shell, generated backend wire types, generic server-only API infrastructure, and deterministic unit/component/browser/accessibility verification. Obsolete route, API-client, listing-service, handwritten wire-DTO, theme, i18n, and empty scaffold files were removed only after their replacements compiled and passed their gates.
 
-The landing page remains intentionally data-free. Chapter 2 owns the first feature-specific listing operation, handwritten listing view model, catalog route, and real backend-backed product UI.
+The landing page remains intentionally data-free. Chapter 2 implements the anonymous `/mk/listings` and `/en/listings` catalog through a feature-owned server operation and strict adapter. It includes keyword/type filters, four-root cards, media fallbacks, total counts, pagination, pending feedback, empty/error/retry states, localized metadata, and responsive Light/Dark presentation. Backend 2R and frontend 2S hardened the contract and navigation after 2P. The chapter document retains the bounded checkpoint record and separates historical evidence from fresh 2Q verification.
 
 Every implementation session must begin with:
 
@@ -55,7 +58,7 @@ Do not introduce unsupported saved searches, favorites, general admin user/listi
 - Keep Next.js App Router and deploy with a Next.js server runtime. Static export is not supported by the accepted architecture.
 - Canonical user-facing URLs are always locale-prefixed with `/mk` or `/en`.
 - Locale selection order for an unprefixed URL is: valid locale cookie, supported `Accept-Language`, then `mk`.
-- `src/proxy.ts` performs locale normalization. In a later authenticated phase it may perform optimistic session-cookie presence/expiry redirects, but it must not fetch the backend or make authoritative permission decisions.
+- `src/proxy.ts` performs locale normalization and preserves original catalog query presence for metadata before framework normalization. It overwrites the internal signal rather than trusting client input. It must not fetch the backend or make authoritative permission decisions.
 - Route groups represent real layout or security boundaries, not speculative future features.
 - Next.js route `params` and `searchParams` are treated as asynchronous values in accordance with Next.js 16 conventions.
 
@@ -71,7 +74,7 @@ Do not introduce unsupported saved searches, favorites, general admin user/listi
 ### 4.3 State boundaries
 
 ```text
-URL state       public filters, sort, page, and page size
+URL state       Chapter 2 q, listingType, propertyType, and page
 Server state    backend resources and authenticated current-user state
 Form state      submitted data, validation, and field interaction
 Local state     open/closed controls, gallery selection, temporary UI drafts
@@ -80,6 +83,7 @@ Global state    none unless future evidence establishes a need
 ```
 
 - Public search state belongs to the URL; do not duplicate it in a global store.
+- Catalog controls reset to server defaults on committed raw-URL changes, including distinct URLs with identical normalized filters. Unsubmitted edits survive same-URL rerenders. Sort is backend-owned and page size is fixed at 20, not URL-controlled.
 - Do not add Redux or Zustand.
 - Do not add TanStack Query during Chapters 1–5. Re-evaluate it for authenticated, mutation-heavy screens after Chapter 5.
 - Public backend reads use explicit `cache: "no-store"` through Chapter 5. Do not rely on framework defaults.
@@ -111,27 +115,30 @@ Global state    none unless future evidence establishes a need
 - `SITE_URL` owns `metadataBase`; localhost is never a production default.
 - Public pages generate localized titles, descriptions, canonical URLs, and language alternatives.
 - The clean listings catalog and Active listing-detail pages are indexable.
-- Filtered, sorted, or paginated listings URLs use `noindex,follow` and a normalized catalog canonical to prevent crawl explosion.
+- Every query-bearing catalog document uses `noindex,follow`, including unknown, invalid, empty, repeated and default-valued parameters. Canonicals and language alternatives always use clean locale catalog URLs; visible locale switching preserves the query.
+- Catalog query presence is captured by Proxy with documented `skipProxyUrlNormalize`, including framework-stripped names. Only the Flight representation excludes its `_rsc` transport key; a document containing that key remains noindex. This representation distinction is not authentication. Preserve header-ownership and direct HTML tests.
+- Catalog entry, recovery, pagination and locale links, and the GET form, use targeted `prefetch={false}` to avoid a reproduced Next.js 16.3 stale-head failure. Enhanced navigation remains enabled; other routes retain their prefetch behavior. Metadata never calls the listings backend.
 - Public agency pages are rendered according to the backend contract, but only Active agencies are indexable. The frontend must not present another agency state as verified.
 - Initial sitemap output contains stable public routes. Do not crawl every listing or agency at build time without a bounded discovery/feed contract.
 
 ## 5. Folder Structure and Ownership
 
-The implemented Chapter 1 structure is:
+The implemented structure is:
 
 ```text
 scripts/                       OpenAPI generation and drift checking
-tests/e2e/                     Chromium Playwright and axe foundation suite
+tests/e2e/                     Chromium Playwright and axe foundation/catalog suites
+tests/fixtures/                Playwright-owned deterministic HTTP fixture
 src/app/[locale]/              localized root, boundaries, and public route group
 src/components/                ui, shell, feedback, and provider boundaries
 src/config/                    environment, navigation, routes, and site metadata config
 src/contracts/generated/       committed generated wire declarations
-src/features/listings/utils/   retained locale-aware formatter/label utilities
+src/features/listings/         server API/adapter, models, URL state, components, formatters
 src/i18n/                      locale selection and server/client dictionary boundaries
 src/lib/                       generic API, media, and utility infrastructure
 src/styles/                    global baseline and semantic tokens
 src/test/                      Vitest setup
-src/proxy.ts                   locale normalization only
+src/proxy.ts                   locale normalization and catalog query-presence signal
 ```
 
 The long-term ownership shape below guides later chapters. Later route groups and features must not be created as empty placeholders.
@@ -165,7 +172,7 @@ src/
         page.tsx
         listings/
           page.tsx
-          loading.tsx
+          error.tsx              # implemented; deliberately no route loading.tsx
           [listingId]/page.tsx
         agencies/[slug]/page.tsx
       (auth)/                    # later, created with first route
@@ -313,6 +320,9 @@ optional requestId
 - Map `errors.file` to uploads and `errors.request` to the form-level summary.
 - Do not fabricate request IDs for network failures.
 - Static-media failures are ordinary image failures, not ProblemDetails.
+- The catalog catches classified transport/adapter failures and maps localized copy; unexpected exceptions reach its route-local boundary using stable `retry`. Current-URL refresh preserves filters/page. Without JavaScript, a same-URL link retries and genuine support IDs remain readable.
+- Copy feedback is owned by the exact request ID, with latest-attempt-wins guards for overlapping promises. A stale copy cannot confirm a different ID or overwrite a newer attempt.
+- The locale-root boundary has a separate inherited retry-prop issue; see C2-06 in the quality handoff.
 
 ### 6.4 Query and pagination rules
 
@@ -331,6 +341,7 @@ optional requestId
 - Reject unexpected absolute, protocol-relative, or non-upload paths.
 - Restrict `next/image` remote patterns to the configured origin and `/uploads/**`.
 - Missing media uses an accessible visual fallback.
+- Catalog media preserves a 4:3 frame for success, missing/rejected paths and runtime image failure. The redundant preview uses empty alt text; only its error behavior is client-owned. Production `dangerouslyAllowLocalIP` remains false, so a loopback fixture image can correctly fall back in production verification.
 - Client-side upload checks for type, size, and count are advisory; backend validation is authoritative.
 - Never automatically retry uploads or other mutations without an idempotency contract.
 
@@ -392,7 +403,6 @@ Development:
 openapi-typescript
 vitest
 @vitejs/plugin-react
-vite-tsconfig-paths
 jsdom
 @testing-library/react
 @testing-library/user-event
@@ -405,9 +415,10 @@ jsdom
 ### Add when first used
 
 ```text
-Chapter 2: msw
 After Chapter 5 mutation-form phase: react-hook-form, @hookform/resolvers
 ```
+
+Chapter 2 added no runtime dependency. Native fetch mocks and a small local HTTP fixture server cover the catalog's unit and server-rendered browser boundaries without MSW. Reconsider a mocking dependency only when a later concrete test boundary makes it materially simpler.
 
 ### Do not add during Chapters 1–5
 
@@ -479,7 +490,7 @@ Completed locale-prefixed routing, accessible public shell, environment validati
 
 ### Chapter 2 — Public Listings Catalog Vertical Slice
 
-Deliver the first real backend-backed route with listing cards, basic shareable filters, primary images, total count, pagination, and complete loading/empty/error handling.
+Implemented and independently accepted through 2P and subsequent 2S hardening; final 2Q closeout awaits independent audit. See the chapter's reconciliation for the actual catalog, verification and limitations. Revised 2K deliberately uses `useFormStatus`/`useLinkStatus` instead of native route loading: streamed fallback replacement broke no-JavaScript rendering. No catalog-wide skeleton or global navigation coordinator is missing from the accepted design.
 
 ### Chapter 3 — Complete Public Search and Filters
 
@@ -493,7 +504,7 @@ Build localized, indexable listing detail pages with complete apartment/house da
 
 Add public agency profiles/listings, agency attribution, homepage discovery entry, stable sitemap/robots policy, and the complete home-to-agency anonymous E2E journey.
 
-Do not create separate Chapter 2–5 specifications until implementation feedback is available and the next chapter is ready to begin.
+Do not create separate Chapter 3–5 specifications until Chapter 2 implementation feedback is available and the next chapter is ready to begin.
 
 ## 10. Locked and Revisitable Decisions
 
@@ -517,9 +528,17 @@ Do not create separate Chapter 2–5 specifications until implementation feedbac
 - backend permission and lifecycle authority;
 - no unsupported product features.
 
+### Revisitable after the Chapter 2 catalog review
+
+- broader frontend visual direction;
+- exact palette, spacing scale, and primitive APIs;
+- homepage composition and richer discovery imagery;
+- catalog-informed typography, density, card interaction, and breakpoint choices.
+
+Chapter 2 makes only the decisions needed for its catalog. Review these items from the finished interface before planning Chapter 3; do not turn that review into an automatic site-wide redesign.
+
 ### Revisitable after Chapter 5
 
-- exact palette, spacing scale, and primitive APIs;
 - public cache/revalidation duration;
 - filter prominence and mobile grouping;
 - an i18n framework if more locales or rich message needs justify it;
@@ -558,24 +577,28 @@ The following phase should then plan BFF authentication, registration/session-ex
 
 ## 12. Current Handoff
 
-The next Codex session must implement only:
+The authoritative Chapter 2 plan is:
 
 ```text
-Chapter 2 — Public Listings Catalog Vertical Slice
+docs/chapters/chapter-2-public-listings-catalog.md
 ```
+
+The accepted 2S merge is `0365baf` (implementation `e6ba5f9`). The 2Q branch starts there with a clean tree. Backend `development` at `808c6a9` includes 2R (`8473abc`, merge `8043353`) and the historical source-provenance test correction (`e732562`). These are source baselines, not substitutes for test results.
+
+Chapter 2's reconciliation records current verification and preserves the distinction between 2P's empty real HTTP smoke and 2R's populated serialization/adapter check. Neither is evidence of a populated live-backend Next.js browser journey. The protected Development database was last assessed at 24 listings and 14 migrations; accepted backend inventory is 21. Its upgrade, inherited foundation retry issue, and backend dependency review remain separately authorized work. Do not start or migrate that backend to satisfy ordinary frontend gates.
 
 Required reading order:
 
 1. `AGENTS.md`
 2. this file
-3. the Chapter 2 specification when it is approved
+3. `docs/chapters/chapter-2-public-listings-catalog.md`
 4. the narrow installed Next.js 16 documentation relevant to files being changed
 5. the exact current files in Chapter 2 scope
 
 Chapter 1 has no remaining checkpoint. Normal format, lint, typecheck, Vitest, aggregate check, build, and Playwright execution use committed generated types and do not require a running backend. Explicit `api:generate` and `api:check` operations require the backend Development Swagger document.
 
-`docs/frontend-quality-handoff.md` remains the live issue register and currently contains five unresolved entries: `FE-TOOL-01`, `FE-TOOL-02`, `FE-TOOL-03`, `FE-TOOL-04`, and `FE-DEP-01`. Their full evidence and remediation directions belong only in that handoff.
+`docs/frontend-quality-handoff.md` remains the live issue register and currently contains one unresolved entry: `FE-TOOL-01`. Its full evidence and remediation direction belong only in that handoff. It is not Chapter 2 architecture work.
 
 Do not broadly reread the backend. The frontend context and generated OpenAPI declarations contain the normal integration rules. Inspect a narrow backend/OpenAPI detail only when Chapter 2 encounters a genuine wire-contract contradiction.
 
-Before writing code, recheck Git state. Keep Chapter 2 bounded to its approved checkpoints and do not reopen the completed Chapter 1 architecture without concrete evidence.
+Before writing code, recheck Git state. Keep each Chapter 2 branch to the single authorized small checkpoint and do not reopen the completed Chapter 1 architecture without concrete evidence. Broader frontend visual planning remains deliberately open until the completed catalog can be reviewed in real browsers.
