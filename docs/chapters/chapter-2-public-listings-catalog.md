@@ -2,17 +2,15 @@
 
 ## Status
 
-**In progress. Checkpoints 2A and 2B accepted; post-2B backend contract synchronization in review before 2C.**
+**Implementation through 2P and subsequent 2R/2S hardening accepted and integrated.
+2Q documentation and final verification await independent closeout audit.**
 
-Chapter 1 is complete. Chapter 2 must be implemented as the small checkpoints in
-section 12, in order, with one branch per checkpoint. The target of approximately
-100–200 lines applies to product/implementation code where practical. Tests,
-fixtures, and focused documentation may make a checkpoint diff larger, but are not
-a reason to combine product responsibilities.
-
-Frontend Git history contains the accepted 2A and 2B merges (`b1e030c` and
-`71378f5`). The finalized backend Chapter 15 handoff and generated OpenAPI replace
-the original 2B wire assumptions. Checkpoint 2C has not started.
+The owner confirms independent acceptance; Git ancestry and source were checked
+on 2026-10-31. Frontend baseline `0365baf` includes 2S implementation `e6ba5f9`.
+Backend `development` at `808c6a9` includes 2R `8473abc` and the historical-provenance
+test correction `e732562`. Section 12 retains the bounded checkpoint specification;
+section 15 reconciles it with implementation, approved deviations and evidence.
+This document does not self-approve 2Q or start Chapter 3.
 
 ## 1. Chapter objective
 
@@ -55,15 +53,17 @@ of the application.
   - price per square metre when present.
 - A localized total-result summary.
 - Previous/next pagination links that preserve the valid Chapter 2 filters.
-- Route loading skeletons aligned with the eventual catalog geometry.
+- Localized form/link pending feedback; the approved 2K revision deliberately
+  replaces the original route-skeleton proposal to preserve no-JavaScript rendering.
 - Separate zero-results, invalid-search, and out-of-range-page presentations.
 - Localized API/network failure presentation with retry and a real backend request
   ID when one is available.
 - Localized listings metadata, canonical and language-alternative URLs, and the
-  existing filtered/paginated `noindex,follow` policy.
+  `noindex,follow` policy for every query-bearing catalog document.
 - Deterministic unit/component/browser fixtures that require no running backend for
   normal validation.
-- A bounded real-backend contract smoke check at chapter closeout.
+- Bounded real-backend contract verification, with its distinct historical scopes
+  recorded in section 15.
 - Keyboard, focus, contrast, reflow, reduced-motion, semantic, axe, and Chromium
   verification for representative catalog states.
 
@@ -85,7 +85,8 @@ The following are not Chapter 2 work:
 - analytics, recommendations, scoring, valuation, market averages, or AI claims;
 - homepage redesign, a hero/cover-image treatment, or a site-wide visual redesign;
 - a broad component library, broad token expansion, Storybook, or visual regression;
-- a backend endpoint, backend change, catch-all proxy, or browser-readable API URL.
+- a new backend endpoint, catch-all proxy, or browser-readable API configuration.
+  The separately authorized backend 2R remediation is recorded in section 15.
 
 ## 4. Existing frontend foundation being reused
 
@@ -108,10 +109,8 @@ Chapter 2 reuses these completed Chapter 1 boundaries without redesigning them:
 - Vitest, Testing Library, Playwright, Chromium, and axe;
 - current import, feature ownership, and `.server.ts` enforcement rules.
 
-No Chapter 2 runtime dependency is planned. Zod is already installed if the narrow
-runtime response adapter benefits from it. Native fetch mocks and a tiny local HTTP
-fixture server are sufficient; the earlier context suggestion of adding MSW is not
-needed for this slice.
+Chapter 2 added no runtime dependency. Its handwritten strict response adapter,
+native fetch mocks and test-owned HTTP fixture reuse the established infrastructure.
 
 ## 5. Actual backend contracts being consumed
 
@@ -251,7 +250,7 @@ The existing transport also classifies non-JSON failures, malformed successful
 responses, network failures, and aborts. Chapter 2 presents a localized catalog
 failure, retains a real response request ID when available, and never fabricates one.
 
-## 6. Proposed architecture and server/client boundaries
+## 6. Implemented architecture and server/client boundaries
 
 ```text
 localized listings page (Server Component)
@@ -266,8 +265,8 @@ localized listings page (Server Component)
 
 Ownership:
 
-- `src/app/[locale]/(public)/listings/` owns the page, localized metadata, loading
-  boundary, unexpected-error boundary, and composition only.
+- `src/app/[locale]/(public)/listings/` owns the page, localized metadata,
+  unexpected-error boundary, and composition only; it has no `loading.tsx`.
 - `src/features/listings/api/` owns the endpoint path, generated operation types,
   consumed-response validation, mapping, and server operation.
 - `src/features/listings/model/` owns the small card and catalog-state view models.
@@ -275,24 +274,23 @@ Ownership:
   validation, and URL construction.
 - `src/features/listings/components/` owns the search surface, listing media/card,
   result layout, states, and pagination.
-- `src/components/feedback/` gains a generic refresh-capable wrapper only if the
-  catalog uses it immediately.
+- `src/components/feedback/refresh-error-state.tsx` owns current-URL refresh and
+  genuine request-ID copy interaction.
 - `src/lib` remains unchanged unless a proven generic defect is discovered.
 
 Server Components remain the default. Search and filters use `next/form` with a
 string localized action, so they perform GET navigation with progressive
-enhancement and need no client state. Pagination uses normal Next links.
-
-Only two narrow client boundaries are expected:
-
-1. listing media, because `next/image` `onError` recovery requires a Client
-   Component;
-2. retry/error boundaries, because router refresh and Next error boundaries are
-   client behavior.
+enhancement. Pagination uses normal Next links. Narrow client islands handle image
+failure, refresh/copy/error boundaries, form/link pending status, and resetting
+uncontrolled search controls when a different raw URL commits. Search parsing,
+retrieval, results and pagination metadata remain server-owned. Catalog entry
+points use `prefetch={false}` as the accepted 2S mitigation described in section 15;
+they retain enhanced navigation and native GET fallback.
 
 No Client Component receives a full dictionary. It receives only the labels it
 renders. There is no Route Handler, client-side backend fetch, global store, query
-library, or browser-visible backend origin.
+library, or browser-visible API transport configuration. Resolved public media
+resource URLs may appear in image markup.
 
 ## 7. URL and search-state approach
 
@@ -329,6 +327,10 @@ Submitting the GET form naturally resets to page 1 because it does not include a
 page input. Pagination links are produced by the feature search helper and preserve
 only the valid active Chapter 2 state.
 
+Committed URL identity and normalized backend query state are separate concerns.
+2S resets dirty controls after pagination or history navigation even when distinct
+raw URLs normalize identically, while same-URL rerenders preserve unsubmitted edits.
+
 ### 7.3 Indexing policy
 
 - The clean catalog is `index,follow` with its localized canonical and language
@@ -339,6 +341,14 @@ only the valid active Chapter 2 state.
   other supported locale.
 - Locale switching continues to preserve the current query so users retain their
   search context; metadata policy, not forced URL deletion, controls crawl growth.
+
+Proxy captures original query presence with documented `skipProxyUrlNormalize`
+before Next.js can strip names such as `__proto__`, `_rsc`, `nxtPq` and `nxtIfoo`.
+It overwrites the internal request signal, including spoofed client values. Exact
+`RSC: 1` requests select Flight rather than an indexable HTML document; only that
+representation excludes the framework's `_rsc` transport key. Prefetch hints alone
+do not change document policy. This is a representation boundary, not authentication.
+Direct HTML, no-JavaScript, spoofed-header and enhanced-navigation tests guard it.
 
 ## 8. Loading, invalid, empty, error, and retry behavior
 
@@ -375,6 +385,9 @@ Known classified failures render a localized catalog error inside the route whil
 preserving the public shell. The retry control refreshes the current URL. A genuine
 backend request ID is labelled as support information. Network failures display no
 fake ID. Technical English backend detail is not the user-facing message.
+The no-JavaScript retry link reloads the same URL. Copy feedback is isolated by
+request ID and accepts only the latest copy attempt's completion; stale promises
+cannot report success or failure for a new ID or overwrite newer feedback.
 
 ### Unexpected rendering failure
 
@@ -456,6 +469,10 @@ implemented destination or action exists.
 
 ## 12. Small-checkpoint implementation plan
 
+This section retains the implementation scope and dependency record. 2A–2P and
+the post-2B contract synchronization are implemented and accepted; the later
+2R/2S corrections and current 2Q verification are reconciled in section 15.
+
 Every checkpoint gets its own branch from the accepted previous checkpoint. The
 estimated size is product/implementation code, excluding tests, fixtures, generated
 output, and documentation. Do not begin the next checkpoint until the current one
@@ -503,8 +520,8 @@ has its focused success condition reviewed.
 
 ### Post-2B backend contract synchronization — prerequisite to 2C
 
-- **Status:** Implemented for audit on the dedicated contract-sync branch; acceptance
-  and commit remain separate owner actions.
+- **Status:** Accepted and integrated before 2C; the strict four-root public contract
+  remains the current generated/adapter boundary.
 - **Source:** Final Chapter 15 Development Swagger and definitive backend/frontend
   handoff. Regenerate `openapi.d.ts`; update the narrow card model, runtime adapter,
   focused tests, and current-state documentation.
@@ -792,7 +809,7 @@ has its focused success condition reviewed.
   of additional fixture/config code plus focused browser tests.
 - **Tests required:** Both locales; exact server query including lang/page/pageSize;
   search and filters; page reset/restoration; pagination; image success/failure;
-  loading; zero/out-of-range/error/retry; locale switch query preservation; metadata;
+  pending navigation; zero/out-of-range/error/retry; locale switch query preservation; metadata;
   keyboard order; narrow reflow; Light/Dark; axe. Existing foundation E2E remains
   green. Real smoke validates a 200 page through the adapter and one validation
   ProblemDetails response without relying on seeded listing count.
@@ -822,25 +839,26 @@ has its focused success condition reviewed.
   planning, dependency upgrades, FE-TOOL-01 investigation, commit/merge/push without
   explicit authorization.
 - **Completion condition:** Documentation describes actual Chapter 2 behavior,
-  evidence and Git state are precise, no process/artifact remains, and the next work
-  is Chapter 3 planning informed by the real catalog.
-- **Dependency:** 2P.
+  evidence and Git state are precise, test-owned servers are stopped, and generated
+  output remains ignored. Later Chapter 3 planning requires its own authorization.
+- **Dependency:** 2P and the subsequently accepted 2R/2S hardening.
 
 ## 13. Chapter completion criteria
 
 Chapter 2 is complete only when all of the following are true:
 
-1. Checkpoints 2A–2Q were implemented and reviewed in order on separate bounded
-   branches.
+1. Bounded checkpoints 2A–2P, the post-2B sync and subsequent 2R/2S remediation are
+   implemented and reviewed; 2Q must receive independent audit before final closure.
 2. `/mk/listings` and `/en/listings` render real anonymous `GET /api/listings` data
    through the feature-owned server operation.
-3. The browser never receives the backend origin or performs a direct backend fetch.
+3. API transport configuration remains server-only and the browser makes no direct
+   listings API fetch. Resolved public media resource URLs are permitted.
 4. Route locale owns `lang`, page size is fixed at 20, and default order is newest.
 5. Valid q/listing/property/page URLs restore predictably; search/filter changes
    reset page; pagination preserves valid filters.
 6. Cards show only truthful catalog fields, safe primary media, and actual content
    language; no card implies an unimplemented detail action.
-7. Loading, invalid-q, true-empty, out-of-range, media-failure, API/network-error,
+7. Revised 2K pending feedback, invalid-q, true-empty, out-of-range, media-failure, API/network-error,
    unexpected-error, request-ID, and retry behavior are each verified.
 8. Clean catalog metadata is localized and indexable; query-bearing catalog URLs are
    `noindex,follow` with the clean localized canonical.
@@ -854,16 +872,17 @@ Chapter 2 is complete only when all of the following are true:
 12. A bounded Development-backend smoke confirms the committed generated contract;
     an empty real database is accepted and is not confused with a failed smoke.
 13. `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test`,
-    `npm run check`, `npm run build`, and `npm run test:e2e` pass without leaving
-    processes or generated artifacts.
-14. No Chapter 2 runtime dependency, Route Handler, global state, client query layer,
-    backend change, or browser-readable API origin was added.
+    `npm run check`, `npm run build`, and `npm run test:e2e` pass; test-owned servers
+    stop and generated artifacts remain outside the tracked diff.
+14. No frontend runtime dependency, Route Handler, global state, client query layer,
+    or browser-readable API configuration was added. Backend changes are limited to
+    the separately approved 2R remediation, not frontend feature expansion.
 15. Documentation and Git status contain only intended Chapter 2 work; Chapter 3 and
     broader visual direction remain unimplemented.
 
 ## 14. Risks and deliberate non-goals
 
-### Confirmed risks/contradictions to carry into implementation
+### Remaining contract cautions and separate handoffs
 
 - The backend root `AGENTS.md` shows an older short filter list. Current generated
   OpenAPI, backend controller/query/validator/repository code, and backend context
@@ -873,9 +892,9 @@ Chapter 2 is complete only when all of the following are true:
   in generated TypeScript despite runtime success values. The nine strict public
   translation/location fields are required and non-null. The narrow runtime adapter
   must fail malformed consumed fields instead of using broad assertions.
-- There is no Development listing seed. The minimum deterministic happy-path browser
-  fixture must exist by 2D for card/design review, then be expanded and reused in 2P;
-  the real-backend smoke must remain valid with zero items.
+- Normal browser tests use the Playwright-owned HTTP fixture introduced in 2D and
+  expanded through 2P/2S. Real-backend verification must remain valid with zero items;
+  a populated live Next.js journey is a different verification scope.
 - `primaryImageUrl` is safe only after central resolution. A valid resolved upload
   can still return an ordinary static 404 and needs client-only image fallback.
 - Backend q has a strict 2–100-character rule. Direct URL input needs frontend
@@ -911,3 +930,138 @@ Chapter 2 is complete only when all of the following are true:
 
 Those decisions should be made from the finished Chapter 2 interface in real
 browsers, not predicted in this plan.
+
+## 15. Closeout reconciliation and verification
+
+### Implemented requirements
+
+The accepted implementation through 2P and subsequent 2R/2S hardening satisfies
+the following functional groups. This record supports **2Q independent audit**;
+it does not itself approve final Chapter 2 closure.
+
+| Requirements / completion criteria                             | Implemented boundary and verification                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anonymous catalog, contract adaptation, locale, ordering (2–4) | `get-public-listings.server.ts` owns the server-only operation; generated wire types remain separate from `public-listings-contract.ts`. Fixed page size 20, route-owned language, no-store retrieval, and omitted sort preserve backend defaults. Fixture-observed requests and adapter/transport tests cover this boundary.                                       |
+| Search, filters, pagination and history (5)                    | The 2E parser owns normalized backend state; GET form controls synchronize with committed browser URLs, including distinct raw URLs with equivalent normalized values. Page links retain valid filters; filter submission omits page. Both locales, dirty controls, history and no-JavaScript journeys are covered.                                                 |
+| Cards, content language and media (6)                          | Four property roots render as named, noninteractive articles. Backend-authored language, exact-value location deduplication, optional facts and prices remain truthful. Central media resolution and the narrow image-error client boundary preserve 4:3 geometry.                                                                                                  |
+| Pending, empty, failure and recovery (7)                       | Revised 2K uses form/link pending status. Invalid q suppresses retrieval; zero totals and positive-total empty pages have distinct recovery. Classified failures retain search context, genuine support IDs and current-URL retry; keyed clipboard state and latest-attempt guards prevent stale confirmations. Unexpected exceptions use the local route boundary. |
+| Metadata (8)                                                   | Localized title/description, clean canonicals and both hreflang destinations are independent of retrieval. Every query-bearing HTML document is noindex/follow; clean documents are index/follow. Proxy ownership, stripped keys, spoofed headers and final enhanced-navigation head state have production tests.                                                   |
+| Accessibility and layout (9–11)                                | Named search/results/pagination regions, explicit labels, article identity, language annotations and visible focus accompany a one/two/three-column grid. Browser checks cover long content, 320px reflow, themes, targets, reduced motion and representative axe scans. Automated checks do not certify complete WCAG conformance.                                 |
+| Real contract and quality gates (12–13)                        | Historical real-backend checks and fresh 2Q gates are distinguished below. Normal browser runs remain fixture-owned and backend-independent.                                                                                                                                                                                                                        |
+| Scope and ownership (1, 14–15)                                 | No new frontend runtime dependency or browser listings fetch was introduced. Backend 2R was separately authorized. 2Q changes documentation only; broader product work remains deferred and independent closeout approval is outstanding.                                                                                                                           |
+
+### Approved deviations
+
+- **2K:** Native route `loading.tsx` streaming left completed server content hidden
+  without JavaScript. The accepted replacement is localized `useFormStatus` and
+  `useLinkStatus` feedback. Absence of a catalog skeleton is intentional.
+- **2S metadata lifecycle:** Targeted `prefetch={false}` on catalog entry,
+  search/recovery, pagination and locale navigation avoids a repeatedly reproduced
+  stale-head failure during speculative enhanced navigation. Links/forms still use
+  enhanced navigation; this is not a forced document reload. A minimal reproduction
+  also failed without Proxy. The exact internal cache-write mechanism was not proven;
+  re-enabling prefetch requires repeated production head/history evidence.
+- **Backend 2R:** The deep audit justified bounded backend invariant/offset repairs
+  after the original frontend implementation. No DTO, generated contract or schema
+  change was required.
+
+### Deep-audit finding dispositions
+
+| Finding                  | Verified disposition at the closeout baseline                                                                                                                                                                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| C2-01 — negative Rooms   | Backend Create/Update reject negative nullable decimal Rooms; null, zero and positive values remain valid. Publication readiness enforces the same invariant, and public mapping fails closed for corrupt Active records. Focused tests cover all four roots.                              |
+| C2-02 — offset overflow  | Public, personal and agency repositories calculate offsets in Int64, compare against total count before narrowing, and return empty out-of-range items with the requested page and truthful metadata. Extreme-page and normal pagination regressions are retained.                         |
+| C2-03 — dirty controls   | Accepted 2S separates normalized query semantics from committed URL identity; the narrow controls boundary resets on committed URL changes, including raw-equivalent URLs, while preserving same-URL edits.                                                                                |
+| C2-04 — query SEO        | Proxy-owned original query presence complements page searchParams, including framework-stripped names. HTML query policy and Flight transport handling are separate; client input cannot override the owned signal. Targeted prefetch mitigation preserves final browser-head correctness. |
+| C2-05 — currency         | The adapter requires exactly three ASCII letters, accepts mixed-case/uncommon codes, and rejects malformed values before formatting. Malformed-response classification retains the normalized genuine request ID.                                                                          |
+| C2-06 — foundation retry | **Unresolved, inherited nonblocking finding:** locale-root `error.tsx` still uses `unstable_retry`; catalog-local errors use stable `retry`. Tracked in the quality handoff for a separate correction.                                                                                     |
+
+Frontend 2S implementation `e6ba5f9` is merged at `0365baf` and is an ancestor of
+this closeout branch. Backend `development` at `808c6a9` includes 2R (`8473abc`,
+merged at `8043353`) and the historical provenance correction (`e732562`). Source
+inspection confirms these dispositions; independent acceptance is supplied by the
+owner's checkpoint record, not inferred from this documentation review.
+
+### Historical verification — not fresh 2Q execution
+
+- **2P (2026-10-27):** Genuine Development HTTP 200 with an empty page passed the
+  accepted server operation/adapter; genuine HTTP 400 `validation.failed`
+  ProblemDetails passed transport/request-ID normalization. The isolated database
+  on `127.0.0.1:15432` had all 21 migrations. Smoke-owned resources were cleaned up;
+  protected `realestate_db`, its 24 listings, 14 migrations and volume were preserved.
+  This proves empty-response and validation contracts, not populated rendering.
+- **2R:** Separately, isolated backend HTTP serialization returned nonempty Active
+  Apartment/House/Commercial/Land records and extreme-page empty responses. The
+  unchanged production frontend parser accepted those payloads. This was not a
+  rendered Next.js page against a populated live backend. Retained evidence records
+  404 focused and 2,446 full backend tests, plus a successful build. The full run
+  preceded the 2R commit; the later historical-provenance assertion failure required
+  the separate correction below.
+- **Historical provenance correction:** The test now fingerprints
+  `contract.SourceLineageCommit:src`, preserving the historical manifest and ancestry,
+  disposition, migration and publication guards. Retained runs passed 28 affected,
+  230 query-review and 2,446 full tests. Their timestamps precede the correction's
+  commit; a full-suite rerun against the new committed HEAD was not located during
+  2Q. Do not present those runs as post-commit verification.
+- **2S:** Retained implementation evidence records 452 unit/component tests,
+  107 Chromium tests (83 catalog, 22 foundation, 2 route-frame), 46 production
+  regressions, 48 repeated production navigation checks and a successful build.
+  Earlier failing metadata runs remain part of the investigation; the accepted
+  targeted mitigation, rather than a single lucky run, is the baseline.
+- **2O:** Retained acceptance includes actual browser 200% zoom and measured
+  Light/Dark contrast. A fresh narrow-viewport/reflow test is not a new independent
+  browser-zoom or manual contrast measurement.
+
+Local evidence is intentionally ignored: frontend `docs/planning/chapter-2p-2026-10-27/`
+and `docs/planning/chapter-2s/seo-investigation/`; backend investigation reports/TRX
+remain in the local temporary evidence directories. These locations are not portable
+CI artifacts. Preserve the distinction between recorded acceptance, inspected source
+and personally rerun gates.
+
+### Fresh 2Q verification — 2026-10-31
+
+Baseline: frontend `0365baf6dea848e41a5355407664003dab977f02`, initially clean on
+`feature/chapter-2q-chapter-closeout`. Only Markdown changes are included in 2Q.
+
+| Command / scope                           | Result                                                                                                                                                                                                              |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check`                           | Formatting, ESLint and TypeScript passed; Vitest **452/452**, **31/31** files. This command runs `format:check`, `lint`, `typecheck` and `test`; those constituent results are not separate independent executions. |
+| `npm run build`                           | Production Next.js 16.3 build passed; localized catalog remains a dynamic Server Component route.                                                                                                                   |
+| `npm run test:e2e`                        | **107/107 Chromium tests**: 83 catalog, 22 foundation, 2 route-frame; no test retries or skips. Includes representative catalog/foundation axe, contrast, responsive, reduced-motion and keyboard checks.           |
+| Established production Chromium selection | **46/46** passed against `next start`: metadata, direct raw-query/spoofed-header HTML, dirty controls/history, pending feedback, clipboard races and no-JavaScript navigation.                                      |
+| Repeated production enhanced navigation   | **12/12** passed (`--grep 'enhanced.*navigation' --repeat-each 3`, both locales), with zero retries. These repeat existing cases, not additional unique coverage.                                                   |
+| `npm run api:check`                       | Unavailable: live Swagger connection refused before fixture startup. No generated files changed; this is not a successful drift check.                                                                              |
+| `git diff --check`                        | Passed; documentation-only scope.                                                                                                                                                                                   |
+
+Production commands used the unchanged 2S local override of the standard Playwright
+config, replacing `next dev` with `next start` while retaining the owned fixture.
+The selection was run with
+`node node_modules/@playwright/test/cli.js test public-listings --config docs/planning/chapter-2q-2026-10-31/verification/production.config.ts --grep 'metadata|indexing|dirty|raw query|spoofed|pending feedback|without JavaScript|native GET|overlapping clipboard|stale clipboard'`.
+The temporary config was removed after verification. Logs remain under ignored
+`docs/planning/chapter-2q-2026-10-31/`; no screenshots or generated artifacts enter
+the diff. Test-owned servers shut down after the runs.
+
+The first redirected PowerShell npm runs printed successful test summaries but the
+wrapper returned status 1 after treating npm notice output as `NativeCommandError`.
+Final npm gates were rerun with native exit status preserved; no assertion or source
+change was used to address the wrapper result. Repeated runs are not counted as new
+independent coverage. No fresh real-backend smoke or manual zoom audit is claimed.
+
+### Remaining limitations and deferred work
+
+- Live Development Swagger was unavailable during 2Q (`api:check` received connection
+  refused at localhost:5231). Generated declarations and accepted backend source were
+  compared read-only; no fresh live drift verdict is claimed. No protected backend was
+  started or migrated to obtain Swagger.
+- The protected database's last recorded state remains 24 listings/14 migrations,
+  versus 21 accepted migrations. Its future upgrade/data review needs separate backend
+  authorization. No fresh database query was performed in 2Q.
+- Obtain the backend provenance fix's post-commit full-suite evidence; the available
+  pre-commit runs cannot establish that particular Git-sensitive gate.
+- C2-06, FE-TOOL-01 and inherited backend cryptography dependency advisories remain in
+  the quality handoff. No dependency update or security exploitability claim is made.
+- Production image optimization intentionally rejects loopback/private-IP sources.
+  Fixture image success in development and secure fallback in production are distinct
+  checks; `dangerouslyAllowLocalIP` remains false.
+- Listing details, advanced filters/sorting, richer media, authentication and the other
+  non-goals in section 14 remain deferred. Closeout starts none of them.

@@ -14,7 +14,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 This repository is the Next.js frontend for a real-estate platform focused on North Macedonia. The separate `realestate-backend` repository owns backend behavior. Never invent endpoints or hand-maintain backend contracts; use the generated OpenAPI declarations and confirmed backend contract.
 
-Inspect existing files before adding structure. Keep each branch to one bounded checkpoint and keep changes small, evidence-based, and within the requested product phase. Chapter 1 is complete; Chapter 2 — Public Listings Catalog Vertical Slice is next.
+Inspect existing files before adding structure. Keep each branch to one bounded checkpoint and keep changes small, evidence-based, and within the requested product phase. Read the current status in `docs/frontend-context.md` and the applicable chapter before starting work.
 
 Before work, inspect the exact repository state:
 
@@ -31,10 +31,11 @@ Unexpected tracked or untracked work belongs to the user until proven otherwise.
 
 - Use Next.js 16 App Router, React 19, TypeScript, npm, and the existing Tailwind CSS 4 pipeline.
 - Canonical user-facing routes are always locale-prefixed with `/mk` or `/en`.
-- `src/proxy.ts` owns locale normalization only: valid locale cookie, supported browser language, then Macedonian fallback. It performs no backend fetch or authorization.
+- `src/proxy.ts` owns locale normalization (valid locale cookie, supported browser language, then Macedonian fallback) and the catalog's original query-presence signal for metadata. It overwrites client input for that signal and performs no backend fetch or authorization. Preserve the documented `skipProxyUrlNormalize` boundary and HTML-versus-Flight tests.
 - Root `<html>`, `<body>`, and document language belong to `src/app/[locale]/layout.tsx`.
 - Treat route `params` and `searchParams` as asynchronous values under Next.js 16 conventions.
 - Server Components are the default. Client Components are narrow interaction islands only.
+- Preserve catalog GET progressive enhancement: pending feedback uses `useFormStatus`/`useLinkStatus`, not `loading.tsx`. Catalog-only `prefetch={false}` is an accepted metadata-lifecycle mitigation; change it only with repeated production head/history verification.
 - Do not create speculative route groups, unsupported navigation destinations, empty feature folders, or broad `index.ts` barrels.
 
 ## Ownership boundaries
